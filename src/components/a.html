@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tải File Mẫu Excel Cấp Bằng</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  </head>
+  <body style="font-family: sans-serif; text-align: center; padding: 50px">
+    <h2>File Mẫu Danh Sách Cấp Bằng Giáo Lý</h2>
+    <button
+      id="downloadBtn"
+      style="
+        padding: 12px 24px;
+        font-size: 16px;
+        background-color: #10b981;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+      "
+    >
+      📥 Tải File Excel Mẫu (.xlsx)
+    </button>
+
+    <script>
+      document
+        .getElementById("downloadBtn")
+        .addEventListener("click", function () {
+          // Dữ liệu mẫu chuẩn cấu hình
+          const data = [
+            {
+              code: "CC-2026-001",
+              godName: "Giuse",
+              fullName: "Nguyễn Văn Nam",
+              dob: "12/05/1998",
+            },
+            {
+              code: "CC-2026-002",
+              godName: "Maria",
+              fullName: "Trần Thị Mai",
+              dob: "20/08/2000",
+            },
+            {
+              code: "CC-2026-003",
+              godName: "Phaolô",
+              fullName: "Lê Hoàng Long",
+              dob: "05/11/1996",
+            },
+            {
+              code: "CC-2026-004",
+              godName: "Têrêsa",
+              fullName: "Phạm Thị Thu",
+              dob: "15/09/2001",
+            },
+            {
+              code: "CC-2026-005",
+              godName: "Anrê",
+              fullName: "Vũ Đức Anh",
+              dob: "02/02/1999",
+            },
+          ];
+
+          // Tạo workbook và sheet
+          const worksheet = XLSX.utils.json_to_sheet(data);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, "DanhSachHocVien");
+
+          // Xuất file .xlsx
+          XLSX.writeFile(workbook, "Danh_Sach_Cap_Bang_Lop_Hon_Nhan.xlsx");
+        });
+    </script>
+  </body>
+</html>
