@@ -27,21 +27,19 @@ import {
 } from "antd";
 import {
   SearchOutlined,
-  PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
-  ReloadOutlined,
   BookOutlined,
   FileTextOutlined,
   UserOutlined,
   CalendarOutlined,
   ReadOutlined,
   FlagOutlined,
-  CompassOutlined,
 } from "@ant-design/icons";
+import PageHeroHeader from "../components/common/PageHeroHeader";
 
-const { Text, Title, Paragraph } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 
 // Bảng màu thiết kế Tôn Nghiêm (Editorial Sacred Palette)
@@ -266,40 +264,16 @@ export default function PrayerManager() {
       <div className="prayer-editorial-layout">
         <div className="prayer-editorial-container">
           {/* HEADER SECTION */}
-          <div className="prayer-header-section">
-            <div className="header-text-group">
-              <span className="sacred-badge">
-                <CompassOutlined /> HỆ THỐNG PHỤNG VỤ LỜI CHÚA
-              </span>
-              <Title level={2} className="prayer-main-title">
-                KHO KINH
-              </Title>
-              <Paragraph className="prayer-sub-title">
-                Quản lý nội dung các Kinh Thánh
-              </Paragraph>
-            </div>
 
-            <div className="header-action-group">
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchData}
-                loading={loading}
-                className="refresh-btn"
-                style={{ marginRight: 10 }}
-              >
-                Làm mới
-              </Button>
-
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => openModal()}
-                className="add-prayer-btn"
-              >
-                Soạn Nội Dung Mới
-              </Button>
-            </div>
-          </div>
+          <PageHeroHeader
+            badge="HỆ THỐNG PHỤNG VỤ LỜI CHÚA"
+            title=" KHO KINH"
+            description=" Quản lý nội dung các Kinh Thánh"
+            onRefresh={fetchData}
+            refreshLoading={loading}
+            actionText="Thêm Nhân Sự Mới"
+            onAction={() => openModal()}
+          />
 
           {/* FILTER CARD */}
           <Card bordered={false} className="filter-card">

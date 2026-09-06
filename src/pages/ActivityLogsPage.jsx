@@ -9,7 +9,6 @@ import {
   Input,
   Row,
   Col,
-  Statistic,
   Select,
   Tooltip,
   ConfigProvider,
@@ -29,23 +28,21 @@ import {
   EditOutlined,
   PlusOutlined,
   KeyOutlined,
-  WarningOutlined,
   EyeOutlined,
-  ReloadOutlined,
   CloudServerOutlined,
   UserOutlined,
   CodeOutlined,
-  CompassOutlined,
   ClearOutlined,
 } from "@ant-design/icons";
 
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import { getActivityLogs } from "../api/activityLogApi";
-
+import PageHeroHeader from "../components/common/PageHeroHeader";
+import StatCard from "../components/common/StatCard";
 dayjs.extend(isBetween);
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
@@ -322,113 +319,61 @@ export default function ActivityLogsPage() {
       <div className="audit-editorial-layout">
         <div className="audit-editorial-container">
           {/* HEADER BAR */}
-          <div className="audit-header-section">
-            <div className="header-text-group">
-              <span className="sacred-badge">
-                <CompassOutlined /> HỆ THỐNG AN NINH & GIÁM SÁT TỐI CAO
-              </span>
-              <Title level={2} className="audit-main-title">
-                NHẬT KÝ HOẠT ĐỘNG (AUDIT LOGS)
-              </Title>
-              <Paragraph className="audit-sub-title">
-                Lưu vết thời gian thực tất cả biến động dữ liệu và thao tác vận
-                hành Giáo xứ.
-              </Paragraph>
-            </div>
-
-            <div className="header-action-group">
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchLogs}
-                loading={loading}
-                className="refresh-btn"
-              >
-                Làm mới danh sách
-              </Button>
-            </div>
-          </div>
-
+          <PageHeroHeader
+            badge="HỆ THỐNG AN NINH & GIÁM SÁT TỐI CAO"
+            title="NHẬT KÝ HOẠT ĐỘNG (AUDIT LOGS)"
+            description="Lưu vết thời gian thực tất cả biến động dữ liệu và thao tác vận
+                hành Giáo xứ."
+            onRefresh={fetchLogs}
+            refreshLoading={loading}
+          />
           {/* STATS BENTO GRID */}
           <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
             <Col xs={24} sm={8}>
-              <Card
-                bordered={false}
-                className="stat-card"
+              <StatCard
+                title="Bản ghi trong bộ lọc"
+                value={totalLogs}
+                prefix={<CloudServerOutlined className="stat-icon navy" />}
                 style={{ borderLeft: "4px solid " + primaryNavy }}
-              >
-                <Statistic
-                  title={
-                    <Text
-                      type="secondary"
-                      style={{ fontSize: 13, fontWeight: 600 }}
-                    >
-                      Bản ghi trong bộ lọc
-                    </Text>
-                  }
-                  value={totalLogs}
-                  prefix={<CloudServerOutlined className="stat-icon navy" />}
-                  valueStyle={{
-                    fontWeight: 700,
-                    color: primaryNavy,
-                    fontFamily: "'Playfair Display', serif",
-                  }}
-                />
-              </Card>
+              />
             </Col>
 
             <Col xs={24} sm={8}>
-              <Card
-                bordered={false}
-                className="stat-card"
-                style={{ borderLeft: "4px solid " + accentGold }}
-              >
-                <Statistic
-                  title={
-                    <Text
-                      type="secondary"
-                      style={{ fontSize: 13, fontWeight: 600 }}
-                    >
-                      Thay đổi cấu trúc / Nghiệp vụ
-                    </Text>
-                  }
-                  value={sysMutations}
-                  prefix={<HistoryOutlined className="stat-icon gold" />}
-                  valueStyle={{
-                    fontWeight: 700,
-                    color: accentGold,
-                    fontFamily: "'Playfair Display', serif",
-                  }}
-                />
-              </Card>
-            </Col>
-
-            <Col xs={24} sm={8}>
-              <Card
-                bordered={false}
-                className="stat-card"
+              <StatCard
+                title=" Thay đổi cấu trúc / Nghiệp vụ"
+                value={sysMutations}
+                prefix={
+                  <CloudServerOutlined
+                    className="stat-icon navy"
+                    style={{
+                      color: accentGold,
+                    }}
+                  />
+                }
                 style={{
-                  borderLeft: "4px solid #c62828",
-                  background: "#fff5f5",
+                  borderLeft: "4px solid " + primaryNavy,
+                  color: accentGold,
                 }}
-              >
-                <Statistic
-                  title={
-                    <Text
-                      type="danger"
-                      style={{ fontSize: 13, fontWeight: 700 }}
-                    >
-                      Thao tác nguy hiểm (Xóa/Cấp lại)
-                    </Text>
-                  }
-                  value={criticalActions}
-                  prefix={<WarningOutlined className="stat-icon red" />}
-                  valueStyle={{
-                    fontWeight: 700,
-                    color: "#c62828",
-                    fontFamily: "'Playfair Display', serif",
-                  }}
-                />
-              </Card>
+              />
+            </Col>
+
+            <Col xs={24} sm={8}>
+              <StatCard
+                title="   Thao tác nguy hiểm (Xóa/Cấp lại)"
+                value={criticalActions}
+                prefix={
+                  <CloudServerOutlined
+                    className="stat-icon navy"
+                    style={{
+                      color: "red",
+                    }}
+                  />
+                }
+                style={{
+                  borderLeft: "4px solid " + primaryNavy,
+                  color: "red",
+                }}
+              />
             </Col>
           </Row>
 

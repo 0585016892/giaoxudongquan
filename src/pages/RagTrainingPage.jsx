@@ -15,11 +15,11 @@ import {
 import {
   SyncOutlined,
   DatabaseOutlined,
-  CompassOutlined,
   ThunderboltOutlined,
   CloudUploadOutlined,
   InfoCircleOutlined,
 } from "@ant-design/icons";
+import PageHeroHeader from "../components/common/PageHeroHeader";
 
 import { useRag } from "../context/RagContext";
 
@@ -54,21 +54,14 @@ const RagTrainingPage = () => {
       <div className="rag-editorial-layout">
         <div className="rag-editorial-container">
           {/* HEADER BAR */}
-          <div className="rag-header-section">
-            <div className="header-text-group">
-              <span className="sacred-badge">
-                <CompassOutlined /> HỆ THỐNG TRÍ TUỆ NHÂN TẠO MỤC VỤ
-              </span>
-              <Title level={2} className="rag-main-title">
-                HUẤN LUYỆN AI GIÁO XỨ (RAG)
-              </Title>
-              <Paragraph className="rag-sub-title">
-                Đồng bộ kho văn bản Lời Chúa, Lịch phụng vụ & Thông tin Giáo xứ
-                để Chatbot thông minh tự động trả lời Giáo dân.
-              </Paragraph>
-            </div>
-          </div>
 
+          <PageHeroHeader
+            badge="HỆ THỐNG TRÍ TUỆ NHÂN TẠO MỤC VỤ"
+            title=" HUẤN LUYỆN AI GIÁO XỨ (RAG)"
+            description="Đồng bộ kho văn bản Lời Chúa, Lịch phụng vụ & Thông tin Giáo xứ
+                để Chatbot thông minh tự động trả lời Giáo dân."
+            refreshLoading={loading}
+          />
           {/* CẢNH BÁO TIẾN TRÌNH */}
           {loading && (
             <Alert

@@ -24,9 +24,7 @@ import {
 } from "antd";
 
 import {
-  PlusOutlined,
   SearchOutlined,
-  ReloadOutlined,
   EditOutlined,
   DeleteOutlined,
   AudioOutlined,
@@ -34,7 +32,6 @@ import {
   EyeOutlined,
   UploadOutlined,
   CopyOutlined,
-  CompassOutlined,
   UserOutlined,
   PictureOutlined,
   ClockCircleOutlined,
@@ -53,6 +50,7 @@ import {
   getMediaByCategory,
   changeMediaStatus,
 } from "../api/mediaApi";
+import PageHeroHeader from "../components/common/PageHeroHeader";
 
 import { useUser } from "../context/UserContext";
 
@@ -64,8 +62,6 @@ const { Title, Text } = Typography;
 
 const NAVY_DARK = "#1B2A4A";
 const GOLD_ACCENT = "#D4AF37";
-const GOLD_LIGHT_BG = "#FFFDF0";
-const GOLD_BORDER = "#E8D8A0";
 const PAGE_BG = "#F9FAFB";
 const TEXT_MUTED = "#6B7280";
 
@@ -496,8 +492,7 @@ export default function MediaManager() {
 
         message.success("Cập nhật media thành công");
       } else {
-
-      /* CREATE */
+        /* CREATE */
         if (!values.mediaFile?.fileList?.length) {
           message.warning("Vui lòng chọn file Audio hoặc Video");
 
@@ -1015,104 +1010,17 @@ export default function MediaManager() {
              HEADER
           ===================================================== */}
 
-          <div
-            style={{
-              marginBottom: 24,
-            }}
-          >
-            <Row justify="space-between" align="bottom" gutter={[20, 20]}>
-              <Col>
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "4px 14px",
-                    borderRadius: 50,
-                    border: `1px solid ${GOLD_BORDER}`,
-                    backgroundColor: GOLD_LIGHT_BG,
-                    color: "#A17C00",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    letterSpacing: "0.5px",
-                    marginBottom: 10,
-                  }}
-                >
-                  <CompassOutlined />
-                  HỆ THỐNG LƯU TRỮ VÀ QUẢN LÝ TÀI NGUYÊN TRUYỀN THÔNG
-                </div>
-
-                <Title
-                  level={1}
-                  style={{
-                    margin: 0,
-                    color: NAVY_DARK,
-                    fontFamily: "'Playfair Display', Georgia, serif",
-                    fontWeight: 800,
-                    letterSpacing: "1px",
-                    fontSize: 32,
-                    lineHeight: 1.1,
-                  }}
-                >
-                  KHO MEDIA
-                </Title>
-
-                <Text
-                  style={{
-                    color: TEXT_MUTED,
-                    fontSize: 14,
-                    marginTop: 4,
-                    display: "block",
-                  }}
-                >
-                  Quản lý nội dung các bài giảng, audio thánh ca và tệp truyền
-                  thông
-                </Text>
-              </Col>
-
-              <Col>
-                <Space size={12}>
-                  <Button
-                    size="large"
-                    icon={<ReloadOutlined />}
-                    onClick={handleReset}
-                    style={{
-                      borderRadius: 10,
-                      borderColor: "#D1D5DB",
-                      fontWeight: 600,
-                      color: "#374151",
-                      height: 42,
-                      paddingLeft: 18,
-                      paddingRight: 18,
-                    }}
-                  >
-                    Làm mới
-                  </Button>
-
-                  {canManage && (
-                    <Button
-                      type="primary"
-                      size="large"
-                      icon={<PlusOutlined />}
-                      onClick={handleCreate}
-                      style={{
-                        backgroundColor: NAVY_DARK,
-                        borderColor: NAVY_DARK,
-                        borderRadius: 10,
-                        fontWeight: 600,
-                        height: 42,
-                        paddingLeft: 20,
-                        paddingRight: 20,
-                        boxShadow: "0 4px 12px rgba(27,42,74,0.2)",
-                      }}
-                    >
-                      Soạn Nội Dung Mới
-                    </Button>
-                  )}
-                </Space>
-              </Col>
-            </Row>
-          </div>
+          <PageHeroHeader
+            badge=" HỆ THỐNG LƯU TRỮ VÀ QUẢN LÝ TÀI NGUYÊN TRUYỀN THÔNG"
+            title="KHO MEDIA"
+            description="  Quản lý nội dung các bài giảng, audio thánh ca và tệp truyền
+                  thông"
+            onRefresh={handleReset}
+            refreshLoading={loading}
+            actionText="Thêm Nhân Sự Mới"
+            onAction={() => handleCreate()}
+            showAction={canManage}
+          />
 
           {/* =====================================================
              FILTER

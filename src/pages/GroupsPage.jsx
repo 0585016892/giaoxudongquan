@@ -35,8 +35,6 @@ import {
   FileTextOutlined,
   RocketOutlined,
   HistoryOutlined,
-  CompassOutlined,
-  ReloadOutlined,
 } from "@ant-design/icons";
 import {
   getGroups,
@@ -45,8 +43,8 @@ import {
   updateGroup,
   deleteGroup,
 } from "../api/groupApi";
-
-const { Title, Text, Paragraph } = Typography;
+import PageHeroHeader from "../components/common/PageHeroHeader";
+const { Text } = Typography;
 const { TextArea } = Input;
 
 // Bảng màu thiết kế Tôn Nghiêm (Editorial Sacred Palette)
@@ -317,45 +315,20 @@ const GroupPage = () => {
       <div className="group-editorial-layout">
         <div className="group-editorial-container">
           {/* CONTROL DASHBOARD HEADER */}
-          <div className="group-header-section">
-            <div className="header-text-group">
-              <span className="sacred-badge">
-                <CompassOutlined /> HỆ THỐNG PHONG TRÀO MỤC VỤ
-              </span>
-              <Title level={2} className="group-main-title">
-                QUẢN LÝ HỘI ĐOÀN GIÁO XỨ
-              </Title>
-              <Paragraph className="group-sub-title">
-                Lưu trữ hồ sơ các phong trào, hội đoàn, danh sách nhân số đoàn
-                viên và ban trị sự.
-              </Paragraph>
-            </div>
-
-            <div className="header-action-group">
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => fetchData(pagination.current)}
-                loading={loading}
-                className="refresh-btn"
-                style={{ marginRight: 10 }}
-              >
-                Làm mới
-              </Button>
-
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  form.resetFields();
-                  setEditingId(null);
-                  setShowModal(true);
-                }}
-                className="add-group-btn"
-              >
-                Thêm Hội Đoàn Mới
-              </Button>
-            </div>
-          </div>
+          <PageHeroHeader
+            badge="HỆ THỐNG PHONG TRÀO MỤC VỤ"
+            title="QUẢN LÝ HỘI ĐOÀN GIÁO XỨ"
+            description="  Lưu trữ hồ sơ các phong trào, hội đoàn, danh sách nhân số đoàn
+                viên và ban trị sự."
+            onRefresh={() => fetchData(pagination.current)}
+            refreshLoading={loading}
+            actionText="Thêm Hội Đoàn Mới"
+            onAction={() => {
+              form.resetFields();
+              setEditingId(null);
+              setShowModal(true);
+            }}
+          />
 
           {/* TABLE LOGISTIC WRAPPER */}
           <Card bordered={false} className="main-table-card">

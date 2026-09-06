@@ -18,6 +18,7 @@ import {
   RobotOutlined,
   MessageOutlined,
   FolderOpenOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
@@ -257,6 +258,11 @@ export default function AdminSidebar({ collapsed }) {
                 key: "/settings",
                 icon: <SettingOutlined />,
                 label: "Cấu hình hệ thống",
+              },
+              {
+                key: "/cors",
+                icon: <GlobalOutlined />,
+                label: "Quản lý CORS",
               },
               {
                 key: "/rag",

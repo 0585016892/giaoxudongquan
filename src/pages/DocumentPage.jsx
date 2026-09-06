@@ -28,17 +28,14 @@ import {
   SearchOutlined,
   DownloadOutlined,
   EyeOutlined,
-  ReloadOutlined,
   FilePdfOutlined,
   FileWordOutlined,
   FileExcelOutlined,
   FileZipOutlined,
   FileUnknownOutlined,
-  PlusOutlined,
   DeleteOutlined,
   EditOutlined,
   UploadOutlined,
-  CompassOutlined,
   CalendarOutlined,
   HddOutlined,
   StarFilled,
@@ -54,7 +51,7 @@ import {
   deleteDocument,
   downloadDocument,
 } from "../api/documentApi";
-
+import PageHeroHeader from "../components/common/PageHeroHeader";
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
 
@@ -355,43 +352,20 @@ const DocumentPage = () => {
       <div className="document-page-editorial-layout">
         <div className="document-container">
           {/* HEADER TRANG */}
-          <div className="document-header">
-            <div>
-              <span className="document-tag-sacred">
-                <CompassOutlined /> HỆ THỐNG LƯU TRỮ MỤC VỤ
-              </span>
-              <Title level={2} className="document-main-title">
-                Kho Tài Liệu & Biểu Mẫu Giáo Xứ
-              </Title>
-              <div className="gold-accent-divider" />
-              <Paragraph className="document-sub-title">
-                Nơi lưu trữ các mẫu đơn hôn phối, giáo trình giáo lý, lịch phụng
-                vụ và văn bản chính thức của Giáo xứ Đồng Quan.
-              </Paragraph>
-            </div>
-
-            <Space wrap size="middle" style={{ marginTop: 12 }}>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  setEditingDoc(null);
-                  form.resetFields();
-                  setIsModalOpen(true);
-                }}
-                className="add-doc-btn"
-              >
-                Tải Lên Tài Liệu
-              </Button>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchDocuments}
-                className="reload-doc-btn"
-              >
-                Làm mới
-              </Button>
-            </Space>
-          </div>
+          <PageHeroHeader
+            badge="HỆ THỐNG LƯU TRỮ MỤC VỤ"
+            title="KHO TÀI LIỆU & BIỂU MẪU GIÁO XỨ"
+            description=" Nơi lưu trữ các mẫu đơn hôn phối, giáo trình giáo lý, lịch phụng
+                vụ và văn bản chính thức của Giáo xứ Đồng Quan."
+            onRefresh={fetchDocuments}
+            refreshLoading={loading}
+            actionText=" Tải Lên Tài Liệu"
+            onAction={() => {
+              setEditingDoc(null);
+              form.resetFields();
+              setIsModalOpen(true);
+            }}
+          />
 
           {/* 📊 MINI DASHBOARD THỐNG KÊ TỔNG QUAN */}
           <Row gutter={[16, 16]} style={{ marginBottom: 28 }}>

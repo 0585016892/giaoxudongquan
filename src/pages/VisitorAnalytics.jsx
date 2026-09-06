@@ -3,7 +3,6 @@ import {
   Card,
   Row,
   Col,
-  Statistic,
   Typography,
   Space,
   ConfigProvider,
@@ -24,7 +23,6 @@ import {
   UserOutlined,
   GlobalOutlined,
   FileTextOutlined,
-  CompassOutlined,
   LineChartOutlined,
   DesktopOutlined,
   ClockCircleOutlined,
@@ -34,7 +32,6 @@ import {
   EnvironmentOutlined,
   LinkOutlined,
   LoginOutlined,
-  ReloadOutlined,
 } from "@ant-design/icons";
 
 import {
@@ -58,8 +55,9 @@ import {
   getVisitorChart,
   getVisitorHistory,
 } from "../api/statApi";
-
-const { Title, Text } = Typography;
+import PageHeroHeader from "../components/common/PageHeroHeader";
+import StatCard from "../components/common/StatCard";
+const { Text } = Typography;
 
 /* =========================================================
    ROUTE MAP
@@ -872,29 +870,13 @@ const VisitorAnalytics = () => {
             HEADER
         ===================================================== */}
 
-        <div className="analytics-header">
-          <div>
-            <span className="analytics-badge-tag">
-              <CompassOutlined />
-              THỐNG KÊ WEBSITE
-            </span>
-
-            <Title level={2} className="analytics-main-title">
-              Báo Cáo Lưu Lượng Truy Cập
-            </Title>
-
-            <Text type="secondary">
-              Theo dõi hoạt động và hành vi truy cập website
-            </Text>
-
-            <div className="gold-accent-divider" />
-          </div>
-
-          <Button icon={<ReloadOutlined />} onClick={fetchData}>
-            Làm mới
-          </Button>
-        </div>
-
+        <PageHeroHeader
+          badge="THỐNG KÊ WEBSITE"
+          title="Báo Cáo Lưu Lượng Truy Cập"
+          description="Theo dõi hoạt động và hành vi truy cập website"
+          onRefresh={fetchData}
+          refreshLoading={loading}
+        />
         {loading ? (
           <div className="loading-box">
             <Spin size="large" tip="Đang tải dữ liệu thống kê..." />
@@ -912,83 +894,63 @@ const VisitorAnalytics = () => {
               }}
             >
               <Col xs={24} sm={12} md={6}>
-                <Card bordered={false} className="stat-card">
-                  <Statistic
-                    title={
-                      <span className="stat-title-label">KHÁCH HÔM NAY</span>
-                    }
-                    value={stats.todayVisitors}
-                    prefix={
-                      <EyeOutlined
-                        style={{
-                          color: accentGold,
+                <StatCard
+                  title="KHÁCH HÔM NAY"
+                  value={stats.todayVisitors}
+                  prefix={
+                    <EyeOutlined
+                      style={{
+                        color: accentGold,
 
-                          marginRight: 8,
-                        }}
-                      />
-                    }
-                    valueStyle={{
-                      color: primaryNavy,
-
-                      fontWeight: "bold",
-                    }}
-                  />
-                </Card>
+                        marginRight: 8,
+                      }}
+                    />
+                  }
+                  style={{
+                    borderLeft: "4px solid " + primaryNavy,
+                    color: "red",
+                  }}
+                />
               </Col>
 
               <Col xs={24} sm={12} md={6}>
-                <Card bordered={false} className="stat-card">
-                  <Statistic
-                    title={<span className="stat-title-label">TỔNG KHÁCH</span>}
-                    value={stats.totalVisitors}
-                    prefix={
-                      <UserOutlined
-                        style={{
-                          color: accentGold,
+                <StatCard
+                  title="TỔNG KHÁCH"
+                  value={stats.totalVisitors}
+                  prefix={
+                    <UserOutlined
+                      style={{
+                        color: accentGold,
 
-                          marginRight: 8,
-                        }}
-                      />
-                    }
-                    valueStyle={{
-                      color: primaryNavy,
-
-                      fontWeight: "bold",
-                    }}
-                  />
-                </Card>
+                        marginRight: 8,
+                      }}
+                    />
+                  }
+                  style={{
+                    borderLeft: "4px solid " + primaryNavy,
+                    color: "red",
+                  }}
+                />
               </Col>
 
               <Col xs={24} sm={12} md={6}>
-                <Card bordered={false} className="stat-card online-card">
-                  <Statistic
-                    title={
-                      <span
-                        className="stat-title-label"
-                        style={{
-                          color: "#52c41a",
-                        }}
-                      >
-                        ĐANG ONLINE
-                      </span>
-                    }
-                    value={onlineUsers}
-                    prefix={
-                      <GlobalOutlined
-                        style={{
-                          color: "#52c41a",
+                <StatCard
+                  title="ĐANG ONLINE"
+                  value={onlineUsers}
+                  prefix={
+                    <GlobalOutlined
+                      style={{
+                        color: accentGold,
 
-                          marginRight: 8,
-                        }}
-                      />
-                    }
-                    valueStyle={{
-                      color: "#52c41a",
-
-                      fontWeight: "bold",
-                    }}
-                  />
-                </Card>
+                        marginRight: 8,
+                      }}
+                    />
+                  }
+                  style={{
+                    borderLeft: "4px solid " + primaryNavy,
+                    color: "red",
+                  }}
+                />
               </Col>
 
               <Col xs={24} sm={12} md={6}>

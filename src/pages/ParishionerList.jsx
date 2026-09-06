@@ -26,13 +26,11 @@ import {
 } from "antd";
 
 import {
-  PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   HomeOutlined,
   UserOutlined,
   SearchOutlined,
-  CompassOutlined,
   ReloadOutlined,
   EyeOutlined,
   BookOutlined,
@@ -51,11 +49,12 @@ import {
   getFamilyMembers,
   getAllHouseheads,
 } from "../api/parishionerApi";
+import PageHeroHeader from "../components/common/PageHeroHeader";
 
 import { getChurches } from "../api/churchApi";
 import { useUser } from "../context/UserContext";
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 
 /* =========================================================
    DESIGN SYSTEM
@@ -1119,55 +1118,24 @@ export default function ParishionerManagement() {
           {/* =================================================
               HEADER
           ================================================= */}
-
-          <div className="parishioner-header-section">
-            <div className="header-text-group">
-              <span className="sacred-badge">
-                <CompassOutlined />
-                HỆ THỐNG SỔ SÁCH MỤC VỤ GIÁO DÂN
-              </span>
-
-              <Title level={2} className="parishioner-main-title">
-                HỘ GIA ĐÌNH
-              </Title>
-
-              <Paragraph className="parishioner-sub-title">
-                Quản lý thông tin hồ sơ giáo dân, phân cấp hộ gia đình và đời
-                sống bí tích toàn xứ.
-              </Paragraph>
-            </div>
-
-            <div className="header-action-group">
-              <Button
-                icon={<ReloadOutlined />}
-                loading={loading}
-                onClick={() =>
-                  loadData({
-                    page: pagination.current,
-                    pageSize: pagination.pageSize,
-                    search: searchKeyword,
-                    status: statusFilter,
-                    churchId: churchFilter,
-                  })
-                }
-                className="refresh-btn"
-              >
-                Làm mới
-              </Button>
-
-              {canManage && (
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={handleOpenCreate}
-                  className="add-parishioner-btn"
-                >
-                  Thêm Giáo Dân Mới
-                </Button>
-              )}
-            </div>
-          </div>
-
+          <PageHeroHeader
+            badge="HỆ THỐNG SỔ SÁCH MỤC VỤ GIÁO DÂN"
+            title="HỘ GIA ĐÌNH"
+            description="Quản lý thông tin hồ sơ giáo dân, phân cấp hộ gia đình và đời sống bí tích toàn xứ."
+            onRefresh={() =>
+              loadData({
+                page: pagination.current,
+                pageSize: pagination.pageSize,
+                search: searchKeyword,
+                status: statusFilter,
+                churchId: churchFilter,
+              })
+            }
+            refreshLoading={loading}
+            actionText="Thêm Giáo Dân Mới"
+            onAction={handleOpenCreate}
+            showAction={canManage}
+          />
           {/* =================================================
               FILTER
           ================================================= */}
@@ -2163,73 +2131,6 @@ export default function ParishionerManagement() {
               .parishioner-editorial-container {
                 max-width: 1250px;
                 margin: 0 auto;
-              }
-
-              .parishioner-header-section {
-                display: flex;
-                justify-content: space-between;
-                align-items: flex-end;
-                margin-bottom: 28px;
-                flex-wrap: wrap;
-                gap: 20px;
-              }
-
-              .header-text-group {
-                min-width: 0;
-              }
-
-              .header-action-group {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                flex-wrap: wrap;
-              }
-
-              .sacred-badge {
-                background: rgba(212, 175, 55, 0.15);
-                border: 1px solid ${accentGold};
-                color: ${primaryNavy};
-                padding: 5px 14px;
-                border-radius: 20px;
-                font-size: 11px;
-                font-weight: 700;
-                letter-spacing: 1px;
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                margin-bottom: 10px;
-              }
-
-              .parishioner-main-title {
-                font-family: 'Playfair Display', Georgia, serif !important;
-                color: ${primaryNavy} !important;
-                margin: 0 !important;
-                font-weight: 700 !important;
-                font-size: clamp(24px, 3.5vw, 34px) !important;
-              }
-
-              .parishioner-sub-title {
-                color: #64748b;
-                margin: 5px 0 0 !important;
-                font-size: 14px;
-                line-height: 1.7;
-              }
-
-              .refresh-btn {
-                border-radius: 10px !important;
-                border-color: rgba(27, 54, 93, 0.2) !important;
-                color: ${primaryNavy} !important;
-                font-weight: 600;
-                height: 42px;
-              }
-
-              .add-parishioner-btn {
-                background: ${primaryNavy} !important;
-                border-color: ${primaryNavy} !important;
-                height: 42px !important;
-                border-radius: 10px !important;
-                font-weight: 700 !important;
-                box-shadow: 0 4px 14px rgba(27, 54, 93, 0.2);
               }
 
               .filter-card {

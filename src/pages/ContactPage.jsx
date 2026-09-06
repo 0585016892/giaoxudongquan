@@ -17,7 +17,6 @@ import {
   Avatar,
   Tooltip,
   Form,
-  Badge,
   Tabs,
   Switch,
   Divider,
@@ -27,11 +26,8 @@ import {
   MailOutlined as MailIcon,
   EyeOutlined as EyeIcon,
   DeleteOutlined as DeleteIcon,
-  ReloadOutlined as ReloadIcon,
   SearchOutlined as SearchIcon,
   SendOutlined as SendIcon,
-  CompassOutlined,
-  FormOutlined,
   SettingOutlined,
   RobotOutlined,
   SaveOutlined,
@@ -48,7 +44,7 @@ import {
   getAutoResponderConfig,
   updateAutoResponderConfig,
 } from "../api/contactApi";
-
+import PageHeroHeader from "../components/common/PageHeroHeader";
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
@@ -601,124 +597,19 @@ const ContactPage = () => {
           "'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif",
       }}
     >
-      {/* BADGE CATEGORY */}
-      <div style={{ marginBottom: 10 }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "5px 16px",
-            borderRadius: 20,
-            border: `1.5px solid ${accentGold}`,
-            backgroundColor: "#FFFDF7",
-            color: primaryNavy,
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: "0.8px",
-            textTransform: "uppercase",
-          }}
-        >
-          <CompassOutlined style={{ color: primaryNavy, fontSize: 14 }} />
-          HỆ THỐNG PHỤNG VỤ LỜI CHÚA
-        </div>
-      </div>
-
-      {/* HEADER BAR & UNREAD BADGE */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
-          marginBottom: 16,
-          flexWrap: "wrap",
-          gap: 16,
+      <PageHeroHeader
+        badge="HỆ THỐNG PHỤNG VỤ LỜI CHÚA"
+        title="QUẢN LÝ HÒM THƯ LIÊN HỆ"
+        description=" Tiếp nhận thư từ độc giả và cấu hình trả lời tự động cho Giáo Xứ
+            Đồng Quan"
+        onRefresh={() => loadContacts(pagination.current, pagination.pageSize)}
+        refreshLoading={loading}
+        actionText="Soạn Email Mới"
+        onAction={() => {
+          replyForm.resetFields();
+          setReplyOpen(true);
         }}
-      >
-        <div>
-          <Space align="center" size={12}>
-            <Title
-              level={1}
-              style={{
-                margin: 0,
-                color: primaryNavy,
-                fontFamily:
-                  "'Playfair Display', 'Merriweather', 'Georgia', serif",
-                fontSize: 32,
-                fontWeight: 800,
-                letterSpacing: "1px",
-                textTransform: "uppercase",
-              }}
-            >
-              QUẢN LÝ HÒM THƯ LIÊN HỆ
-            </Title>
-
-            <Badge
-              count={unreadCount}
-              overflowCount={99}
-              style={{
-                backgroundColor: "#EF4444",
-                boxShadow: "0 2px 8px rgba(239, 68, 68, 0.4)",
-                fontWeight: 700,
-              }}
-            />
-          </Space>
-          <Text
-            style={{
-              color: "#64748B",
-              fontSize: 15,
-              marginTop: 4,
-              display: "block",
-            }}
-          >
-            Tiếp nhận thư từ độc giả và cấu hình trả lời tự động cho Giáo Xứ
-            Đồng Quan
-          </Text>
-        </div>
-
-        {/* TOP ACTION BUTTONS */}
-        {activeTab === "inbox" && (
-          <Space size="middle">
-            <Button
-              icon={<ReloadIcon />}
-              onClick={() =>
-                loadContacts(pagination.current, pagination.pageSize)
-              }
-              style={{
-                borderRadius: 12,
-                height: 42,
-                padding: "0 20px",
-                fontWeight: 600,
-                borderColor: "#D0D5DD",
-                color: textDark,
-                backgroundColor: "#FFFFFF",
-              }}
-            >
-              Làm mới
-            </Button>
-
-            <Button
-              type="primary"
-              icon={<FormOutlined />}
-              onClick={() => {
-                replyForm.resetFields();
-                setReplyOpen(true);
-              }}
-              style={{
-                borderRadius: 12,
-                height: 42,
-                padding: "0 22px",
-                fontWeight: 600,
-                backgroundColor: primaryNavy,
-                borderColor: primaryNavy,
-                boxShadow: "0 4px 12px rgba(27, 54, 93, 0.15)",
-              }}
-            >
-              Soạn Email Mới
-            </Button>
-          </Space>
-        )}
-      </div>
+      />
 
       {/* NAVIGATION TABS */}
       <Tabs

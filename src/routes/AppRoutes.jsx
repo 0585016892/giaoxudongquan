@@ -37,6 +37,7 @@ import MediaManager from "../pages/MediaManager";
 import ContactPage from "../pages/ContactPage";
 import StudentsPage from "../pages/StudentsPage";
 import DailyVerseAdmin from "../pages/admin/DailyVerseAdmin";
+import CorsManagementPage from "../pages/admin/CorsManagementPage";
 
 // ==================== CERTIFICATE ====================
 import CertificatePage from "../components/CertificatePage";
@@ -174,7 +175,7 @@ export default function AppRoutes() {
                 Settings
                 -------------------------------------------------- */}
             <Route path="/settings" element={<SettingsPage />} />
-
+            <Route path="/cors" element={<CorsManagementPage />} />
             {/* --------------------------------------------------
                 Profile
                 -------------------------------------------------- */}

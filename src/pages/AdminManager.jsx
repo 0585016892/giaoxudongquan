@@ -22,7 +22,6 @@ import {
   Tooltip,
   DatePicker,
   ConfigProvider,
-  Statistic,
   Descriptions,
   Divider,
 } from "antd";
@@ -45,8 +44,6 @@ import {
   EyeOutlined,
   SearchOutlined,
   ClearOutlined,
-  CompassOutlined,
-  ReloadOutlined,
   CrownOutlined,
 } from "@ant-design/icons";
 
@@ -63,7 +60,8 @@ import {
 
 import { useUser } from "../context/UserContext";
 import { useChurch } from "../hooks/useChurch";
-
+import PageHeroHeader from "../components/common/PageHeroHeader";
+import StatCard from "../components/common/StatCard";
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
@@ -856,47 +854,16 @@ export default function AdminManager() {
               HEADER
           ================================================== */}
 
-          <div className="admin-header-section">
-            <div className="header-text-group">
-              <span className="sacred-badge">
-                <CompassOutlined />
-                HỆ THỐNG ĐIỀU HÀNH MỤC VỤ
-              </span>
-
-              <Title level={2} className="admin-main-title">
-                BAN ĐIỀU HÀNH & HỘI ĐỒNG MỤC VỤ
-              </Title>
-
-              <Paragraph className="admin-sub-title">
-                Quản lý phân quyền tài khoản hệ thống nội bộ Giáo xứ Đồng Quan.
-              </Paragraph>
-            </div>
-
-            <div className="header-action-group">
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchAdmins}
-                loading={loading}
-                className="refresh-btn"
-                style={{
-                  marginRight: 10,
-                }}
-              >
-                Làm mới
-              </Button>
-
-              {allowRoles.includes(user?.role) && (
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => openDrawer()}
-                  className="add-admin-btn"
-                >
-                  Thêm Nhân Sự Mới
-                </Button>
-              )}
-            </div>
-          </div>
+          <PageHeroHeader
+            badge="HỆ THỐNG ĐIỀU HÀNH MỤC VỤ"
+            title="BAN ĐIỀU HÀNH & HỘI ĐỒNG MỤC VỤ"
+            description="Quản lý phân quyền tài khoản hệ thống nội bộ Giáo xứ Đồng Quan."
+            onRefresh={fetchAdmins}
+            refreshLoading={loading}
+            actionText="Thêm Nhân Sự Mới"
+            onAction={() => openDrawer()}
+            showAction={allowRoles.includes(user?.role)}
+          />
 
           {/* ==================================================
               STATISTICS
@@ -909,50 +876,48 @@ export default function AdminManager() {
             }}
           >
             <Col xs={24} sm={8}>
-              <Card bordered={false} className="stat-card">
-                <Statistic
-                  title="Tổng Số Nhân Sự"
-                  value={totalStaff}
-                  prefix={<TeamOutlined className="stat-icon navy" />}
-                  valueStyle={{
-                    fontWeight: 700,
-                    color: primaryNavy,
-                    fontFamily: "'Playfair Display', serif",
-                  }}
-                />
-              </Card>
+              <StatCard
+                title="Tổng Số Nhân Sự"
+                value={totalStaff}
+                prefix={
+                  <TeamOutlined
+                    style={{
+                      color: primaryNavy,
+                    }}
+                  />
+                }
+                valueColor={primaryNavy}
+              />
             </Col>
 
             <Col xs={24} sm={8}>
-              <Card bordered={false} className="stat-card">
-                <Statistic
-                  title="Linh Mục"
-                  value={totalPriests}
-                  prefix={
-                    <SafetyCertificateOutlined className="stat-icon gold" />
-                  }
-                  valueStyle={{
-                    fontWeight: 700,
-                    color: accentGold,
-                    fontFamily: "'Playfair Display', serif",
-                  }}
-                />
-              </Card>
+              <StatCard
+                title="Linh Mục"
+                value={totalPriests}
+                prefix={
+                  <SafetyCertificateOutlined
+                    style={{
+                      color: accentGold,
+                    }}
+                  />
+                }
+                valueColor={accentGold}
+              />
             </Col>
 
             <Col xs={24} sm={8}>
-              <Card bordered={false} className="stat-card">
-                <Statistic
-                  title="Tài Khoản Hoạt Động"
-                  value={activeStaff}
-                  prefix={<CheckCircleOutlined className="stat-icon green" />}
-                  valueStyle={{
-                    fontWeight: 700,
-                    color: "#2e7d32",
-                    fontFamily: "'Playfair Display', serif",
-                  }}
-                />
-              </Card>
+              <StatCard
+                title="Tài Khoản Hoạt Động"
+                value={activeStaff}
+                prefix={
+                  <CheckCircleOutlined
+                    style={{
+                      color: "#2e7d32",
+                    }}
+                  />
+                }
+                valueColor="#2e7d32"
+              />
             </Col>
           </Row>
 

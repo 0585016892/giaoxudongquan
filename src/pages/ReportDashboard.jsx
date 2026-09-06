@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Card,
   Row,
   Col,
-  Statistic,
   Spin,
   Table,
   Tag,
@@ -17,7 +16,6 @@ import {
   Button,
   DatePicker,
   message,
-  Dropdown,
   Divider,
 } from "antd";
 
@@ -25,17 +23,14 @@ import {
   UserOutlined,
   FileTextOutlined,
   CalendarOutlined,
-  CompassOutlined,
   TrophyOutlined,
   DownloadOutlined,
   FilePdfOutlined,
   HomeOutlined,
-  PrinterOutlined,
   ArrowRightOutlined,
-  ReloadOutlined,
   GlobalOutlined,
-  ExportOutlined,
   FilterOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 
 import {
@@ -64,32 +59,136 @@ import {
   getParishionerReport,
   getSlideReport,
   getVisitorReport,
-  exportReportFile,
 } from "../api/reportApi";
+
+import PageHeroHeader from "../components/common/PageHeroHeader";
+import StatCard from "../components/common/StatCard";
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
-// Bảng màu thiết kế Tôn Nghiêm (Sacred Palette)
+/* =========================================================
+   DESIGN TOKENS
+========================================================= */
+
+const COLORS = {
+  navy: "#1B365D",
+  gold: "#D4AF37",
+  dark: "#0F172A",
+  text: "#334155",
+  muted: "#64748B",
+  border: "#E2E8F0",
+  softBorder: "#F1F5F9",
+  softBg: "#F8FAFC",
+  white: "#FFFFFF",
+
+  blue: "#3B82F6",
+  green: "#10B981",
+  purple: "#8B5CF6",
+  red: "#EF4444",
+
+  goldSoft: "rgba(212, 175, 55, 0.12)",
+  navySoft: "rgba(27, 54, 93, 0.08)",
+  blueSoft: "rgba(59, 130, 246, 0.10)",
+  greenSoft: "rgba(16, 185, 129, 0.10)",
+};
+
 const PIE_COLORS = [
-  "#1B365D",
-  "#D4AF37",
-  "#10B981",
-  "#3B82F6",
-  "#8B5CF6",
-  "#EF4444",
+  COLORS.navy,
+  COLORS.gold,
+  COLORS.green,
+  COLORS.blue,
+  COLORS.purple,
+  COLORS.red,
 ];
 
-const ReportDashboard = () => {
-  const primaryNavy = "#1B365D"; // Xanh Đêm Navy
-  const accentGold = "#D4AF37"; // Vàng Đồng Ánh Kim
-  const textDark = "#0F172A";
-  const softBg = "#F8FAFC";
+/* =========================================================
+   KPI CONFIG
+========================================================= */
 
+const KPI_CONFIG = [
+  {
+    key: "church",
+    title: "GIÁO XỨ & GIÁO HỌ",
+    footer: "Xem danh sách",
+    icon: <HomeOutlined />,
+    color: COLORS.gold,
+    line: "gold-line",
+    getValue: (report) => report.church?.overview?.totalChurches || 0,
+  },
+  {
+    key: "parishioner",
+    title: "TỔNG GIÁO DÂN",
+    footer: "Cơ cấu & Bí tích",
+    icon: <UserOutlined />,
+    color: COLORS.navy,
+    line: "navy-line",
+    getValue: (report) => report.parishioner?.total || 0,
+  },
+  {
+    key: "exam",
+    title: "BÀI THI GIÁO LÝ",
+    footer: "Bảng điểm thi",
+    icon: <TrophyOutlined />,
+    color: COLORS.blue,
+    line: "blue-line",
+    getValue: (report) => report.exam?.overview?.totalExams || 0,
+  },
+  {
+    key: "event",
+    title: "SỰ KIỆN MỤC VỤ",
+    footer: "Lịch sự kiện",
+    icon: <CalendarOutlined />,
+    color: COLORS.green,
+    line: "green-line",
+    getValue: (report) => report.event?.overview?.totalEvents || 0,
+  },
+];
+
+/* =========================================================
+   FILTER API MAP
+========================================================= */
+
+const REPORT_API_MAP = {
+  parishioner: getParishionerReport,
+  exam: getExamReport,
+  document: getDocumentReport,
+  event: getEventReport,
+  liturgical: getLiturgicalReport,
+  visitor: getVisitorReport,
+};
+
+const CATEGORY_LABELS = {
+  parishioner: "Giáo Dân",
+  exam: "Thi Giáo Lý",
+  document: "Tài Liệu",
+  event: "Sự Kiện",
+  liturgical: "Lịch Phụng Vụ",
+  visitor: "Lượt Truy Cập",
+};
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+const extractReportData = (res) => {
+  if (res?.status === "fulfilled") {
+    return res.value?.data?.data || res.value?.data || {};
+  }
+
+  return {};
+};
+
+const getCategoryLabel = (type) => CATEGORY_LABELS[type] || type;
+
+/* =========================================================
+   COMPONENT
+========================================================= */
+
+const ReportDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState({});
 
-  // State quản lý khoảng ngày lọc riêng cho từng loại API
   const [dateFilters, setDateFilters] = useState({
     parishioner: null,
     exam: null,
@@ -99,7 +198,6 @@ const ReportDashboard = () => {
     visitor: null,
   });
 
-  // State loading riêng cho từng phần khi lọc ngày
   const [sectionLoading, setSectionLoading] = useState({
     parishioner: false,
     exam: false,
@@ -109,7 +207,6 @@ const ReportDashboard = () => {
     visitor: false,
   });
 
-  // State Modal Chi Tiết
   const [modalConfig, setModalConfig] = useState({
     visible: false,
     title: "",
@@ -117,27 +214,25 @@ const ReportDashboard = () => {
     data: [],
   });
 
+  /* =========================================================
+     DOCUMENT TITLE
+  ========================================================= */
+
   useEffect(() => {
     document.title = "Báo Cáo Quản Trị Chuyên Sâu | Giáo Xứ Đồng Quan";
+
     loadAllReports();
   }, []);
 
-  // 1. GỌI TOÀN BỘ API LẦN ĐẦU
+  /* =========================================================
+     LOAD ALL REPORTS
+  ========================================================= */
+
   const loadAllReports = async () => {
     try {
       setLoading(true);
 
-      const [
-        church,
-        document,
-        event,
-        exam,
-        group,
-        liturgical,
-        parishioner,
-        slide,
-        visitor,
-      ] = await Promise.allSettled([
+      const results = await Promise.allSettled([
         getChurchReport(),
         getDocumentReport(),
         getEventReport(),
@@ -149,167 +244,105 @@ const ReportDashboard = () => {
         getVisitorReport(),
       ]);
 
-      const extractData = (res) =>
-        res.status === "fulfilled"
-          ? res.value?.data?.data || res.value?.data || {}
-          : {};
+      const [
+        church,
+        document,
+        event,
+        exam,
+        group,
+        liturgical,
+        parishioner,
+        slide,
+        visitor,
+      ] = results;
 
       setReport({
-        church: extractData(church),
-        document: extractData(document),
-        event: extractData(event),
-        exam: extractData(exam),
-        group: extractData(group),
-        liturgical: extractData(liturgical),
-        parishioner: extractData(parishioner),
-        slide: extractData(slide),
-        visitor: extractData(visitor),
+        church: extractReportData(church),
+        document: extractReportData(document),
+        event: extractReportData(event),
+        exam: extractReportData(exam),
+        group: extractReportData(group),
+        liturgical: extractReportData(liturgical),
+        parishioner: extractReportData(parishioner),
+        slide: extractReportData(slide),
+        visitor: extractReportData(visitor),
       });
-    } catch (err) {
-      console.error("Lỗi tải báo cáo:", err);
-      message.error("Lỗi tải báo cáo tổng hợp!");
+    } catch (error) {
+      console.error("Lỗi tải báo cáo:", error);
+
+      message.error("Không thể tải dữ liệu báo cáo tổng hợp.");
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. HÀM XỬ LÝ LỌC NGÀY RIÊNG CHO TỪNG LOẠI API
-  const handleSingleSectionFilter = async (categoryType, dates) => {
-    try {
-      setSectionLoading((prev) => ({ ...prev, [categoryType]: true }));
-      setDateFilters((prev) => ({ ...prev, [categoryType]: dates }));
+  /* =========================================================
+     FILTER SINGLE SECTION
+  ========================================================= */
 
-      let params = {};
-      if (dates && dates[0] && dates[1]) {
+  const handleSingleSectionFilter = async (categoryType, dates) => {
+    const api = REPORT_API_MAP[categoryType];
+
+    if (!api) return;
+
+    try {
+      setSectionLoading((prev) => ({
+        ...prev,
+        [categoryType]: true,
+      }));
+
+      setDateFilters((prev) => ({
+        ...prev,
+        [categoryType]: dates,
+      }));
+
+      const params = {};
+
+      if (dates?.[0] && dates?.[1]) {
         params.startDate = dates[0].format("YYYY-MM-DD");
         params.endDate = dates[1].format("YYYY-MM-DD");
       }
 
-      let res;
-      switch (categoryType) {
-        case "parishioner":
-          res = await getParishionerReport(params);
-          break;
-        case "exam":
-          res = await getExamReport(params);
-          break;
-        case "document":
-          res = await getDocumentReport(params);
-          break;
-        case "event":
-          res = await getEventReport(params);
-          break;
-        case "liturgical":
-          res = await getLiturgicalReport(params);
-          break;
-        case "visitor":
-          res = await getVisitorReport(params);
-          break;
-        default:
-          break;
-      }
+      const res = await api(params);
 
-      if (res) {
-        const newData = res?.data?.data || res?.data || {};
-        setReport((prev) => ({
-          ...prev,
-          [categoryType]: newData,
-        }));
+      const newData = res?.data?.data || res?.data || {};
+
+      setReport((prev) => ({
+        ...prev,
+        [categoryType]: newData,
+      }));
+
+      if (dates?.[0] && dates?.[1]) {
         message.success(
-          `Đã cập nhật dữ liệu ${getCategoryLabel(categoryType)} theo ngày chọn!`,
+          `Đã cập nhật ${getCategoryLabel(
+            categoryType,
+          ).toLowerCase()} theo khoảng ngày.`,
+        );
+      } else {
+        message.success(
+          `Đã bỏ bộ lọc ${getCategoryLabel(categoryType).toLowerCase()}.`,
         );
       }
-    } catch (err) {
-      console.error(`Lỗi lọc ngày ${categoryType}:`, err);
+    } catch (error) {
+      console.error(`Lỗi lọc ${categoryType}:`, error);
+
       message.error(
-        `Không thể lọc dữ liệu cho ${getCategoryLabel(categoryType)}!`,
+        `Không thể lọc dữ liệu ${getCategoryLabel(
+          categoryType,
+        ).toLowerCase()}.`,
       );
     } finally {
-      setSectionLoading((prev) => ({ ...prev, [categoryType]: false }));
+      setSectionLoading((prev) => ({
+        ...prev,
+        [categoryType]: false,
+      }));
     }
   };
 
-  const getCategoryLabel = (type) => {
-    const labels = {
-      parishioner: "Giáo Dân",
-      exam: "Thi Giáo Lý",
-      document: "Tài Liệu",
-      event: "Sự Kiện",
-      liturgical: "Lịch Phụng Vụ",
-      visitor: "Lượt Truy Cập",
-    };
-    return labels[type] || type;
-  };
+  /* =========================================================
+     MODAL
+  ========================================================= */
 
-  // 3. HÀM XUẤT BÁO CÁO CSV
-  const handleExport = async (type, label) => {
-    try {
-      message.loading({
-        content: `Đang kết xuất báo cáo ${label}...`,
-        key: "exporting",
-      });
-      const response = await exportReportFile(type);
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `Bao_Cao_${type}_${Date.now()}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      message.success({
-        content: `Đã xuất báo cáo ${label} thành công!`,
-        key: "exporting",
-      });
-    } catch (err) {
-      console.error("Lỗi xuất file:", err);
-      message.error({
-        content: "Không thể xuất file báo cáo!",
-        key: "exporting",
-      });
-    }
-  };
-
-  const exportMenuItems = [
-    {
-      key: "church",
-      label: "Báo cáo Giáo Xứ & Họ",
-      onClick: () => handleExport("church", "Giáo Xứ"),
-    },
-    {
-      key: "parishioner",
-      label: "Báo cáo Giáo Dân",
-      onClick: () => handleExport("parishioner", "Giáo Dân"),
-    },
-    {
-      key: "exam",
-      label: "Báo cáo Thi Giáo Lý",
-      onClick: () => handleExport("exam", "Thi Giáo Lý"),
-    },
-    {
-      key: "document",
-      label: "Báo cáo Kho Tài Liệu",
-      onClick: () => handleExport("document", "Tài Liệu"),
-    },
-    {
-      key: "event",
-      label: "Báo cáo Sự Kiện Mục Vụ",
-      onClick: () => handleExport("event", "Sự Kiện"),
-    },
-    {
-      key: "liturgical",
-      label: "Báo cáo Lịch Phụng Vụ",
-      onClick: () => handleExport("liturgical", "Lịch Phụng Vụ"),
-    },
-    {
-      key: "visitor",
-      label: "Báo cáo Lượt Truy Cập",
-      onClick: () => handleExport("visitor", "Truy Cập Website"),
-    },
-  ];
-
-  // Mở Modal Chi Tiết
   const openDetailModal = (type, customTitle = "", customData = null) => {
     let title = customTitle;
     let dataList = customData;
@@ -320,8 +353,10 @@ const ReportDashboard = () => {
           title = "Danh Sách Giáo Xứ & Giáo Họ";
           dataList = report.church?.latest || [];
           break;
+
         case "parishioner":
           title = "Thống Kê Giáo Dân Chi Tiết";
+
           dataList = [
             {
               key: "Nam",
@@ -341,24 +376,31 @@ const ReportDashboard = () => {
             },
             {
               key: "Bí tích Thêm Sức",
-              value: `${report.parishioner?.sacrament?.confirmation || 0} người`,
+              value: `${
+                report.parishioner?.sacrament?.confirmation || 0
+              } người`,
             },
           ];
           break;
+
         case "exam":
           title = "Bảng Điểm Thi Giáo Lý Chi Tiết";
           dataList = report.exam?.topStudents || [];
           break;
+
         case "document":
           title = "Danh Sách Biểu Mẫu & Tài Liệu";
           dataList = report.document?.topViews || [];
           break;
+
         case "event":
           title = "Danh Sách Sự Kiện Mục Vụ Gần Đây";
           dataList = report.event?.latest || [];
           break;
+
         default:
-          break;
+          title = title || "Chi tiết dữ liệu";
+          dataList = dataList || [];
       }
     }
 
@@ -366,325 +408,524 @@ const ReportDashboard = () => {
       visible: true,
       title,
       type,
-      data: dataList,
+      data: dataList || [],
     });
   };
 
-  // Cột cho Bảng Thi Giáo Lý
-  const examColumns = [
-    {
-      title: "#",
-      key: "rank",
-      width: 50,
-      render: (_, __, index) => (
-        <Avatar
-          size={24}
-          style={{
-            backgroundColor:
-              index === 0
-                ? accentGold
-                : index === 1
-                  ? "#94A3B8"
-                  : index === 2
-                    ? "#CBD5E1"
-                    : "#F1F5F9",
-            color: index < 3 ? "#FFF" : "#475569",
-            fontSize: 12,
-            fontWeight: "bold",
-          }}
-        >
-          {index + 1}
-        </Avatar>
-      ),
-    },
-    {
-      title: "Họ và Tên",
-      dataIndex: "full_name",
-      key: "full_name",
-      render: (text) => (
-        <Text strong style={{ color: primaryNavy }}>
-          {text}
-        </Text>
-      ),
-    },
-    {
-      title: "Lớp Học",
-      dataIndex: "class_name",
-      key: "class_name",
-      render: (text) => <Tag color="blue">{text?.toUpperCase()}</Tag>,
-    },
-    {
-      title: "Giáo Họ / Xứ",
-      dataIndex: "parish",
-      key: "parish",
-      render: (text) => <Text type="secondary">{text}</Text>,
-    },
-    {
-      title: "Điểm Số",
-      dataIndex: "score",
-      key: "score",
-      align: "right",
-      render: (score) => (
-        <Tag
-          color={score >= 80 ? "gold" : score >= 50 ? "green" : "red"}
-          style={{ fontWeight: "bold", borderRadius: 10 }}
-        >
-          {score} điểm
-        </Tag>
-      ),
-    },
-  ];
+  const closeModal = () => {
+    setModalConfig((prev) => ({
+      ...prev,
+      visible: false,
+    }));
+  };
 
-  // Cột cho Bảng Tài Liệu
-  const docColumns = [
-    {
-      title: "Tên Tài Liệu & Biểu Mẫu",
-      dataIndex: "title",
-      key: "title",
-      render: (text) => (
-        <Space>
-          <FilePdfOutlined style={{ color: "#e74c3c", fontSize: 16 }} />
-          <Text strong style={{ color: primaryNavy }}>
-            {text}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      title: "Danh Mục",
-      dataIndex: "category",
-      key: "category",
-      render: (cat) => <Tag color="gold">{cat || "Chung"}</Tag>,
-    },
-    {
-      title: "Lượt Xem",
-      dataIndex: "view_count",
-      key: "view_count",
-      align: "center",
-      render: (v) => <Text>{v || 0}</Text>,
-    },
-    {
-      title: "Lượt Tải",
-      dataIndex: "download_count",
-      key: "download_count",
-      align: "center",
-      render: (v) => (
-        <Tag color="blue">
-          <DownloadOutlined /> {v || 0}
-        </Tag>
-      ),
-    },
-  ];
+  /* =========================================================
+     EXAM TABLE
+  ========================================================= */
 
-  // Render Khung Lọc Ngày Dành Riêng Cho Từng Thẻ Báo Cáo
-  const renderFilterBar = (categoryType, title) => (
-    <div className="section-filter-bar">
-      <Space align="center">
-        <FilterOutlined style={{ color: accentGold }} />
-        <Text strong style={{ color: primaryNavy, fontSize: 13 }}>
-          {title}
-        </Text>
-      </Space>
-
-      <Space align="center" wrap>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Lọc ngày:
-        </Text>
-        <RangePicker
-          size="small"
-          placeholder={["Từ ngày", "Đến ngày"]}
-          onChange={(dates) => handleSingleSectionFilter(categoryType, dates)}
-          style={{ borderRadius: 8 }}
-        />
-        {dateFilters[categoryType] && (
-          <Button
-            size="small"
-            type="link"
-            onClick={() => handleSingleSectionFilter(categoryType, null)}
+  const examColumns = useMemo(
+    () => [
+      {
+        title: "#",
+        key: "rank",
+        width: 60,
+        align: "center",
+        render: (_, __, index) => (
+          <Avatar
+            size={26}
+            style={{
+              backgroundColor:
+                index === 0
+                  ? COLORS.gold
+                  : index === 1
+                    ? "#94A3B8"
+                    : index === 2
+                      ? "#CBD5E1"
+                      : "#F1F5F9",
+              color: index < 3 ? "#FFFFFF" : "#475569",
+              fontSize: 11,
+              fontWeight: 700,
+            }}
           >
-            Xóa lọc
-          </Button>
-        )}
-      </Space>
-    </div>
+            {index + 1}
+          </Avatar>
+        ),
+      },
+
+      {
+        title: "Họ và Tên",
+        dataIndex: "full_name",
+        key: "full_name",
+        render: (text) => (
+          <Text
+            strong
+            style={{
+              color: COLORS.navy,
+            }}
+          >
+            {text || "Chưa cập nhật"}
+          </Text>
+        ),
+      },
+
+      {
+        title: "Lớp Học",
+        dataIndex: "class_name",
+        key: "class_name",
+        render: (text) => (
+          <Tag
+            color="blue"
+            style={{
+              borderRadius: 8,
+              fontSize: 11,
+            }}
+          >
+            {text ? text.toUpperCase() : "—"}
+          </Tag>
+        ),
+      },
+
+      {
+        title: "Giáo Họ / Xứ",
+        dataIndex: "parish",
+        key: "parish",
+        render: (text) => <Text type="secondary">{text || "—"}</Text>,
+      },
+
+      {
+        title: "Điểm Số",
+        dataIndex: "score",
+        key: "score",
+        align: "right",
+        render: (score) => {
+          const numericScore = Number(score) || 0;
+
+          return (
+            <Tag
+              color={
+                numericScore >= 80
+                  ? "gold"
+                  : numericScore >= 50
+                    ? "green"
+                    : "red"
+              }
+              style={{
+                fontWeight: 700,
+                borderRadius: 10,
+              }}
+            >
+              {numericScore} điểm
+            </Tag>
+          );
+        },
+      },
+    ],
+    [],
   );
+
+  /* =========================================================
+     DOCUMENT TABLE
+  ========================================================= */
+
+  const docColumns = useMemo(
+    () => [
+      {
+        title: "Tên Tài Liệu & Biểu Mẫu",
+        dataIndex: "title",
+        key: "title",
+        render: (text) => (
+          <Space size={8}>
+            <FilePdfOutlined
+              style={{
+                color: COLORS.red,
+                fontSize: 16,
+              }}
+            />
+
+            <Text
+              strong
+              style={{
+                color: COLORS.navy,
+              }}
+            >
+              {text || "Chưa có tiêu đề"}
+            </Text>
+          </Space>
+        ),
+      },
+
+      {
+        title: "Danh Mục",
+        dataIndex: "category",
+        key: "category",
+        render: (category) => (
+          <Tag
+            color="gold"
+            style={{
+              borderRadius: 8,
+            }}
+          >
+            {category || "Chung"}
+          </Tag>
+        ),
+      },
+
+      {
+        title: "Lượt Xem",
+        dataIndex: "view_count",
+        key: "view_count",
+        align: "center",
+        render: (value) => Number(value) || 0,
+      },
+
+      {
+        title: "Lượt Tải",
+        dataIndex: "download_count",
+        key: "download_count",
+        align: "center",
+        render: (value) => (
+          <Tag
+            color="blue"
+            style={{
+              borderRadius: 8,
+            }}
+          >
+            <DownloadOutlined /> {Number(value) || 0}
+          </Tag>
+        ),
+      },
+    ],
+    [],
+  );
+
+  /* =========================================================
+     FILTER BAR
+  ========================================================= */
+
+  const renderFilterBar = (categoryType, title) => {
+    const hasFilter = Boolean(dateFilters[categoryType]);
+
+    return (
+      <div className="section-filter-bar">
+        <div className="filter-heading">
+          <span className="filter-icon">
+            <FilterOutlined />
+          </span>
+
+          <div>
+            <Text className="filter-title">{title}</Text>
+
+            <Text className="filter-subtitle">
+              Chọn khoảng thời gian để cập nhật dữ liệu
+            </Text>
+          </div>
+        </div>
+
+        <Space align="center" wrap size={8}>
+          <RangePicker
+            size="small"
+            value={dateFilters[categoryType]}
+            placeholder={["Từ ngày", "Đến ngày"]}
+            format="DD/MM/YYYY"
+            onChange={(dates) => handleSingleSectionFilter(categoryType, dates)}
+            allowClear
+            style={{
+              borderRadius: 8,
+            }}
+          />
+
+          {hasFilter && (
+            <Button
+              size="small"
+              type="link"
+              icon={<ReloadOutlined />}
+              onClick={() => handleSingleSectionFilter(categoryType, null)}
+              style={{
+                color: COLORS.navy,
+                fontSize: 11,
+                padding: 0,
+              }}
+            >
+              Bỏ lọc
+            </Button>
+          )}
+        </Space>
+      </div>
+    );
+  };
+
+  /* =========================================================
+     KPI SECTION
+  ========================================================= */
+
+  const renderKpis = () => (
+    <Row gutter={[16, 16]} className="report-kpi-grid">
+      {KPI_CONFIG.map((item) => (
+        <Col key={item.key} xs={24} sm={12} lg={6} className="report-kpi-col">
+          <div
+            className={`report-kpi-item ${item.line}`}
+            onClick={() => openDetailModal(item.key)}
+          >
+            <StatCard
+              title={item.title}
+              value={item.getValue(report)}
+              prefix={
+                <span
+                  className="report-stat-icon"
+                  style={{
+                    color: item.color,
+                    background:
+                      item.color === COLORS.gold
+                        ? COLORS.goldSoft
+                        : item.color === COLORS.navy
+                          ? COLORS.navySoft
+                          : item.color === COLORS.blue
+                            ? COLORS.blueSoft
+                            : COLORS.greenSoft,
+                  }}
+                >
+                  {item.icon}
+                </span>
+              }
+              valueColor={COLORS.navy}
+            />
+
+            <div className="report-kpi-footer">
+              <span>{item.footer}</span>
+
+              <ArrowRightOutlined />
+            </div>
+          </div>
+        </Col>
+      ))}
+    </Row>
+  );
+
+  /* =========================================================
+     MODAL CONTENT
+  ========================================================= */
+
+  const renderModalContent = () => {
+    const data = modalConfig.data || [];
+
+    if (modalConfig.type === "exam") {
+      return (
+        <Table
+          columns={examColumns}
+          dataSource={data}
+          rowKey={(record, index) =>
+            record.id || record.student_id || `exam-${index}`
+          }
+          pagination={{
+            pageSize: 5,
+          }}
+          size="small"
+          className="clean-table"
+        />
+      );
+    }
+
+    if (modalConfig.type === "document") {
+      return (
+        <Table
+          columns={docColumns}
+          dataSource={data}
+          rowKey={(record, index) => record.id || `document-${index}`}
+          pagination={{
+            pageSize: 5,
+          }}
+          size="small"
+          className="clean-table"
+        />
+      );
+    }
+
+    if (Array.isArray(data) && data.length > 0 && data[0]?.key) {
+      return (
+        <Table
+          columns={[
+            {
+              title: "Chỉ số",
+              dataIndex: "key",
+              key: "key",
+            },
+            {
+              title: "Giá trị",
+              dataIndex: "value",
+              key: "value",
+              render: (value) => (
+                <Tag
+                  color="gold"
+                  style={{
+                    borderRadius: 8,
+                    fontWeight: 600,
+                  }}
+                >
+                  {value}
+                </Tag>
+              ),
+            },
+          ]}
+          dataSource={data}
+          rowKey={(record, index) => record.key || `detail-${index}`}
+          pagination={false}
+          size="small"
+          className="clean-table"
+        />
+      );
+    }
+
+    return (
+      <Table
+        dataSource={data}
+        rowKey={(record, index) =>
+          record.id ||
+          record.code ||
+          record.name ||
+          record.title ||
+          `detail-${index}`
+        }
+        pagination={{
+          pageSize: 5,
+        }}
+        size="small"
+        className="clean-table"
+        columns={[
+          {
+            title: "Tên / Tiêu đề",
+            dataIndex: "name",
+            render: (text, record) => text || record.title || "Chi tiết",
+          },
+
+          {
+            title: "Loại / Danh mục",
+            dataIndex: "type",
+            render: (text, record) => (
+              <Tag
+                color="blue"
+                style={{
+                  borderRadius: 8,
+                }}
+              >
+                {text || record.category || "Chung"}
+              </Tag>
+            ),
+          },
+
+          {
+            title: "Địa chỉ / Địa điểm",
+            dataIndex: "address",
+            render: (text, record) =>
+              text || record.location || "Giáo xứ Đồng Quan",
+          },
+        ]}
+      />
+    );
+  };
+
+  /* =========================================================
+     MAIN
+  ========================================================= */
 
   return (
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: primaryNavy,
-          borderRadius: 16,
-          colorBgLayout: softBg,
-          fontFamily: "'Be Vietnam Pro', -apple-system, sans-serif",
+          colorPrimary: COLORS.navy,
+          borderRadius: 12,
+          colorBgLayout: COLORS.softBg,
+          fontFamily:
+            "'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        },
+
+        components: {
+          Tabs: {
+            itemColor: COLORS.muted,
+            itemSelectedColor: COLORS.navy,
+            itemHoverColor: COLORS.navy,
+            inkBarColor: COLORS.gold,
+          },
+
+          Table: {
+            headerBg: COLORS.softBg,
+            headerColor: COLORS.navy,
+          },
         },
       }}
     >
       <div className="report-dashboard-root">
-        {/* HEADER VỚI NÚT EXPORT & IN BÁO CÁO */}
-        <div className="report-top-header">
-          <div>
-            <span className="badge-sacred">
-              <CompassOutlined /> HỆ THỐNG BÁO CÁO TỔNG HỢP MỤC VỤ
-            </span>
-            <Title level={2} className="report-main-title">
-              Báo Cáo Quản Trị Giáo Xứ Đồng Quan
-            </Title>
-          </div>
+        {/* =================================================
+            PAGE HEADER
+        ================================================= */}
 
-          <Space size="middle" wrap>
-            <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
-              <Button
-                icon={<ExportOutlined />}
-                style={{ borderRadius: 10, fontWeight: 600 }}
-              >
-                Xuất Báo Cáo (CSV)
-              </Button>
-            </Dropdown>
+        <PageHeroHeader
+          badge="HỆ THỐNG BÁO CÁO TỔNG HỢP MỤC VỤ"
+          title="Báo Cáo Quản Trị Giáo Xứ Đồng Quan"
+          description="Theo dõi tổng quan giáo dân, giáo lý, tài liệu, sự kiện, phụng vụ và hoạt động truy cập."
+          onRefresh={loadAllReports}
+          refreshLoading={loading}
+        />
 
-            <Button
-              icon={<PrinterOutlined />}
-              onClick={() => window.print()}
-              style={{ borderRadius: 10, fontWeight: 600 }}
-            >
-              In Báo Cáo
-            </Button>
-
-            <Button
-              type="primary"
-              icon={<ReloadOutlined />}
-              onClick={loadAllReports}
-              style={{
-                borderRadius: 10,
-                fontWeight: 600,
-                background: primaryNavy,
-              }}
-            >
-              Làm mới toàn bộ
-            </Button>
-          </Space>
-        </div>
+        {/* =================================================
+            LOADING
+        ================================================= */}
 
         {loading ? (
           <div className="loading-center-box">
-            <Spin
-              size="large"
-              tip="Đang tổng hợp dữ liệu báo cáo chuyên sâu..."
-            />
+            <div className="loading-inner">
+              <Spin size="large" />
+
+              <Text className="loading-title">Đang tổng hợp dữ liệu</Text>
+
+              <Text className="loading-description">
+                Hệ thống đang đồng bộ báo cáo mục vụ...
+              </Text>
+            </div>
           </div>
         ) : (
           <>
-            {/* 1. KHU VỰC TỔNG QUAN HỆ THỐNG - 5 CARDS KPIS */}
-            <Row gutter={[16, 16]} style={{ marginBottom: 28 }}>
-              <Col xs={24} sm={12} lg={6} style={{ flexGrow: 1 }}>
-                <Card
-                  bordered={false}
-                  className="kpi-card gold-line clickable-card"
-                  onClick={() => openDetailModal("church")}
-                >
-                  <Statistic
-                    title={<span className="kpi-label">GIÁO XỨ & HỌ</span>}
-                    value={report.church?.overview?.totalChurches || 0}
-                    prefix={
-                      <HomeOutlined
-                        style={{ color: primaryNavy, marginRight: 8 }}
-                      />
-                    }
-                    valueStyle={{ color: primaryNavy, fontWeight: "bold" }}
-                  />
-                  <div className="card-footer-action">
-                    <Text className="action-text">
-                      Xem danh sách <ArrowRightOutlined />
-                    </Text>
-                  </div>
-                </Card>
-              </Col>
+            {/* =================================================
+                KPI
+            ================================================= */}
 
-              <Col xs={24} sm={12} lg={6} style={{ flexGrow: 1 }}>
-                <Card
-                  bordered={false}
-                  className="kpi-card navy-line clickable-card"
-                  onClick={() => openDetailModal("parishioner")}
-                >
-                  <Statistic
-                    title={<span className="kpi-label">TỔNG GIÁO DÂN</span>}
-                    value={report.parishioner?.total || 0}
-                    prefix={
-                      <UserOutlined
-                        style={{ color: accentGold, marginRight: 8 }}
-                      />
-                    }
-                    valueStyle={{ color: primaryNavy, fontWeight: "bold" }}
-                  />
-                  <div className="card-footer-action">
-                    <Text className="action-text">
-                      Cơ cấu & Bí tích <ArrowRightOutlined />
-                    </Text>
-                  </div>
-                </Card>
-              </Col>
+            <section className="report-overview-section">
+              <div className="section-heading">
+                <div>
+                  <Text className="section-eyebrow">TỔNG QUAN</Text>
 
-              <Col xs={24} sm={12} lg={6} style={{ flexGrow: 1 }}>
-                <Card
-                  bordered={false}
-                  className="kpi-card blue-line clickable-card"
-                  onClick={() => openDetailModal("exam")}
-                >
-                  <Statistic
-                    title={<span className="kpi-label">BÀI THI GIÁO LÝ</span>}
-                    value={report.exam?.overview?.totalExams || 0}
-                    prefix={
-                      <TrophyOutlined
-                        style={{ color: "#3B82F6", marginRight: 8 }}
-                      />
-                    }
-                    valueStyle={{ color: primaryNavy, fontWeight: "bold" }}
-                  />
-                  <div className="card-footer-action">
-                    <Text className="action-text">
-                      Bảng điểm thi <ArrowRightOutlined />
-                    </Text>
-                  </div>
-                </Card>
-              </Col>
+                  <Title level={4} className="section-title">
+                    Toàn Cảnh Hoạt Động
+                  </Title>
+                </div>
 
-              <Col xs={24} sm={12} lg={6} style={{ flexGrow: 1 }}>
-                <Card
-                  bordered={false}
-                  className="kpi-card green-line clickable-card"
-                  onClick={() => openDetailModal("event")}
-                >
-                  <Statistic
-                    title={<span className="kpi-label">SỰ KIỆN MỤC VỤ</span>}
-                    value={report.event?.overview?.totalEvents || 0}
-                    prefix={
-                      <CalendarOutlined
-                        style={{ color: "#10B981", marginRight: 8 }}
-                      />
-                    }
-                    valueStyle={{ color: primaryNavy, fontWeight: "bold" }}
-                  />
-                  <div className="card-footer-action">
-                    <Text className="action-text">
-                      Lịch sự kiện <ArrowRightOutlined />
-                    </Text>
-                  </div>
-                </Card>
-              </Col>
-            </Row>
+                <Text className="section-note">Số liệu tổng hợp hiện tại</Text>
+              </div>
 
-            {/* 2. TABS CHÂN TRANG ĐIỀU HÀNH PHÂN KHU (SECTION NAVIGATION) */}
+              {renderKpis()}
+            </section>
+
+            {/* =================================================
+                MAIN TABS
+            ================================================= */}
+
             <Tabs
               type="card"
               className="editorial-main-tabs"
               items={[
+                /* =================================================
+                   TAB 1 - PARISHIONER
+                ================================================= */
+
                 {
                   key: "parishioner-section",
+
                   label: (
-                    <span>
-                      <UserOutlined /> Báo Cáo Giáo Dân & Bí Tích
+                    <span className="tab-label">
+                      <UserOutlined />
+                      Giáo Dân & Bí Tích
                     </span>
                   ),
+
                   children: (
                     <Spin spinning={sectionLoading.parishioner}>
                       <Card bordered={false} className="report-box-card">
@@ -693,109 +934,149 @@ const ReportDashboard = () => {
                           "Lọc Dữ Liệu Giáo Dân & Hôn Nhân",
                         )}
 
-                        <Row gutter={[24, 24]}>
-                          <Col xs={24} md={12}>
-                            <Title level={5} style={{ color: primaryNavy }}>
-                              Cơ Cấu Giới Tính Giáo Dân
-                            </Title>
-                            <ResponsiveContainer width="100%" height={240}>
-                              <PieChart>
-                                <Pie
-                                  data={report.parishioner?.gender || []}
-                                  dataKey="total"
-                                  nameKey="gender"
-                                  cx="50%"
-                                  cy="50%"
-                                  innerRadius={45}
-                                  outerRadius={75}
-                                  paddingAngle={5}
-                                  onClick={(entry) =>
-                                    openDetailModal(
-                                      "parishioner",
-                                      `Chi tiết giới tính: ${entry.gender === "male" ? "Nam" : "Nữ"}`,
-                                      [
-                                        {
-                                          key: "Giới tính",
-                                          value:
-                                            entry.gender === "male"
-                                              ? "Nam"
-                                              : "Nữ",
-                                        },
-                                        {
-                                          key: "Số lượng",
-                                          value: `${entry.total} người`,
-                                        },
-                                      ],
-                                    )
-                                  }
-                                  style={{ cursor: "pointer" }}
-                                >
-                                  {(report.parishioner?.gender || []).map(
-                                    (entry, index) => (
-                                      <Cell
-                                        key={index}
-                                        fill={
-                                          PIE_COLORS[index % PIE_COLORS.length]
-                                        }
-                                      />
-                                    ),
-                                  )}
-                                </Pie>
-                                <Tooltip
-                                  formatter={(v) => [`${v} người`, "Số lượng"]}
-                                />
-                                <Legend />
-                              </PieChart>
-                            </ResponsiveContainer>
-                          </Col>
+                        <Row gutter={[28, 28]}>
+                          {/* GENDER */}
 
                           <Col xs={24} md={12}>
-                            <Title level={5} style={{ color: primaryNavy }}>
-                              Bí Tích Đã Hoàn Thành
-                            </Title>
-                            <div style={{ marginTop: 20 }}>
-                              <Space
-                                direction="vertical"
-                                style={{ width: "100%" }}
-                                size={16}
-                              >
-                                <div>
-                                  <Text strong style={{ fontSize: 13 }}>
-                                    Rửa Tội (Baptism)
-                                  </Text>
+                            <div className="chart-section">
+                              <Title level={5} className="chart-title">
+                                Cơ Cấu Giới Tính Giáo Dân
+                              </Title>
+
+                              <Text className="chart-description">
+                                Phân bổ giáo dân theo giới tính
+                              </Text>
+
+                              <ResponsiveContainer width="100%" height={250}>
+                                <PieChart>
+                                  <Pie
+                                    data={report.parishioner?.gender || []}
+                                    dataKey="total"
+                                    nameKey="gender"
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={48}
+                                    outerRadius={82}
+                                    paddingAngle={5}
+                                    onClick={(entry) =>
+                                      openDetailModal(
+                                        "parishioner",
+                                        `Chi tiết giới tính: ${
+                                          entry.gender === "male" ? "Nam" : "Nữ"
+                                        }`,
+                                        [
+                                          {
+                                            key: "Giới tính",
+                                            value:
+                                              entry.gender === "male"
+                                                ? "Nam"
+                                                : "Nữ",
+                                          },
+                                          {
+                                            key: "Số lượng",
+                                            value: `${entry.total} người`,
+                                          },
+                                        ],
+                                      )
+                                    }
+                                    style={{
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    {(report.parishioner?.gender || []).map(
+                                      (entry, index) => (
+                                        <Cell
+                                          key={entry.gender || index}
+                                          fill={
+                                            PIE_COLORS[
+                                              index % PIE_COLORS.length
+                                            ]
+                                          }
+                                        />
+                                      ),
+                                    )}
+                                  </Pie>
+
+                                  <Tooltip
+                                    formatter={(value) => [
+                                      `${value} người`,
+                                      "Số lượng",
+                                    ]}
+                                  />
+
+                                  <Legend />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </Col>
+
+                          {/* SACRAMENTS */}
+
+                          <Col xs={24} md={12}>
+                            <div className="chart-section">
+                              <Title level={5} className="chart-title">
+                                Bí Tích Đã Hoàn Thành
+                              </Title>
+
+                              <Text className="chart-description">
+                                Tình trạng các bí tích chính
+                              </Text>
+
+                              <div className="sacrament-list">
+                                <div className="sacrament-item">
+                                  <div className="sacrament-header">
+                                    <Text strong>Rửa Tội</Text>
+
+                                    <span className="sacrament-value">
+                                      {report.parishioner?.sacrament?.baptism ||
+                                        0}{" "}
+                                      người
+                                    </span>
+                                  </div>
+
                                   <Progress
                                     percent={100}
-                                    strokeColor={accentGold}
-                                    format={() =>
-                                      `${report.parishioner?.sacrament?.baptism || 0} người`
-                                    }
+                                    strokeColor={COLORS.gold}
+                                    showInfo={false}
                                   />
                                 </div>
-                                <div>
-                                  <Text strong style={{ fontSize: 13 }}>
-                                    Rước Lễ Lần Đầu (Communion)
-                                  </Text>
+
+                                <div className="sacrament-item">
+                                  <div className="sacrament-header">
+                                    <Text strong>Rước Lễ Lần Đầu</Text>
+
+                                    <span className="sacrament-value">
+                                      {report.parishioner?.sacrament
+                                        ?.communion || 0}{" "}
+                                      người
+                                    </span>
+                                  </div>
+
                                   <Progress
                                     percent={100}
-                                    strokeColor={primaryNavy}
-                                    format={() =>
-                                      `${report.parishioner?.sacrament?.communion || 0} người`
-                                    }
+                                    strokeColor={COLORS.navy}
+                                    showInfo={false}
                                   />
                                 </div>
-                                <div>
-                                  <Text strong style={{ fontSize: 13 }}>
-                                    Thêm Sức (Confirmation)
-                                  </Text>
+
+                                <div className="sacrament-item">
+                                  <div className="sacrament-header">
+                                    <Text strong>Thêm Sức</Text>
+
+                                    <span className="sacrament-value">
+                                      {report.parishioner?.sacrament
+                                        ?.confirmation || 0}{" "}
+                                      người
+                                    </span>
+                                  </div>
+
                                   <Progress
                                     percent={100}
-                                    strokeColor="#10B981"
-                                    format={() =>
-                                      `${report.parishioner?.sacrament?.confirmation || 0} người`
-                                    }
+                                    strokeColor={COLORS.green}
+                                    showInfo={false}
                                   />
                                 </div>
-                              </Space>
+                              </div>
                             </div>
                           </Col>
                         </Row>
@@ -803,48 +1084,76 @@ const ReportDashboard = () => {
                     </Spin>
                   ),
                 },
+
+                /* =================================================
+                   TAB 2 - EXAM
+                ================================================= */
+
                 {
                   key: "exam-section",
+
                   label: (
-                    <span>
-                      <TrophyOutlined /> Kết Quả Thi Giáo Lý
+                    <span className="tab-label">
+                      <TrophyOutlined />
+                      Kết Quả Thi Giáo Lý
                     </span>
                   ),
+
                   children: (
                     <Spin spinning={sectionLoading.exam}>
                       <Card bordered={false} className="report-box-card">
                         {renderFilterBar("exam", "Lọc Kết Quả Thi Giáo Lý")}
 
-                        <Row gutter={[24, 24]} style={{ marginBottom: 20 }}>
+                        <Row gutter={[28, 28]} className="exam-overview">
                           <Col xs={24} md={14}>
-                            <Title level={5} style={{ color: primaryNavy }}>
+                            <Title level={5} className="chart-title">
                               Phân Bố Điểm Số
                             </Title>
-                            <ResponsiveContainer width="100%" height={240}>
+
+                            <Text className="chart-description">
+                              Phân bố kết quả các bài thi
+                            </Text>
+
+                            <ResponsiveContainer width="100%" height={250}>
                               <BarChart
                                 data={report.exam?.scoreDistribution || []}
                               >
                                 <CartesianGrid
                                   strokeDasharray="3 3"
-                                  stroke="#E2E8F0"
+                                  stroke={COLORS.border}
+                                  vertical={false}
                                 />
+
                                 <XAxis
                                   dataKey="name"
-                                  tick={{ fill: "#64748B", fontSize: 12 }}
+                                  tick={{
+                                    fill: COLORS.muted,
+                                    fontSize: 12,
+                                  }}
+                                  axisLine={false}
+                                  tickLine={false}
                                 />
+
                                 <YAxis
-                                  tick={{ fill: "#64748B", fontSize: 12 }}
+                                  tick={{
+                                    fill: COLORS.muted,
+                                    fontSize: 12,
+                                  }}
                                   allowDecimals={false}
+                                  axisLine={false}
+                                  tickLine={false}
                                 />
+
                                 <Tooltip
-                                  formatter={(v) => [
-                                    `${v} học viên`,
+                                  formatter={(value) => [
+                                    `${value} học viên`,
                                     "Số lượng",
                                   ]}
                                 />
+
                                 <Bar
                                   dataKey="value"
-                                  fill={primaryNavy}
+                                  fill={COLORS.navy}
                                   radius={[6, 6, 0, 0]}
                                 />
                               </BarChart>
@@ -852,96 +1161,152 @@ const ReportDashboard = () => {
                           </Col>
 
                           <Col xs={24} md={10}>
-                            <Title level={5} style={{ color: primaryNavy }}>
+                            <Title level={5} className="chart-title">
                               Tóm Tắt Khảo Kinh
                             </Title>
-                            <div style={{ marginTop: 24 }}>
-                              <Row gutter={16}>
-                                <Col span={12}>
-                                  <Statistic
-                                    title="Điểm TB"
-                                    value={
-                                      report.exam?.overview?.averageScore || 0
-                                    }
-                                    suffix="/100"
-                                    valueStyle={{
-                                      color: primaryNavy,
-                                      fontWeight: "bold",
-                                    }}
-                                  />
-                                </Col>
-                                <Col span={12}>
-                                  <Statistic
-                                    title="Số bài thi"
-                                    value={
-                                      report.exam?.overview?.totalExams || 0
-                                    }
-                                    valueStyle={{
-                                      color: accentGold,
-                                      fontWeight: "bold",
-                                    }}
-                                  />
-                                </Col>
-                              </Row>
+
+                            <Text className="chart-description">
+                              Các chỉ số chính của kỳ thi
+                            </Text>
+
+                            <div className="exam-stat-grid">
+                              <div className="mini-stat">
+                                <Text className="mini-stat-label">
+                                  Điểm Trung Bình
+                                </Text>
+
+                                <div className="mini-stat-value">
+                                  {report.exam?.overview?.averageScore || 0}
+                                  <span>/100</span>
+                                </div>
+                              </div>
+
+                              <div className="mini-stat gold">
+                                <Text className="mini-stat-label">
+                                  Tổng Bài Thi
+                                </Text>
+
+                                <div className="mini-stat-value">
+                                  {report.exam?.overview?.totalExams || 0}
+                                </div>
+                              </div>
                             </div>
                           </Col>
                         </Row>
 
-                        <Divider style={{ margin: "16px 0" }} />
-                        <Title
-                          level={5}
-                          style={{ color: primaryNavy, marginBottom: 16 }}
-                        >
-                          Bảng Điểm Thi Cao Nhất
-                        </Title>
+                        <Divider />
+
+                        <div className="table-heading">
+                          <div>
+                            <Title level={5} className="chart-title">
+                              Bảng Điểm Thi Cao Nhất
+                            </Title>
+
+                            <Text className="chart-description">
+                              Danh sách học viên có kết quả nổi bật
+                            </Text>
+                          </div>
+                        </div>
+
                         <Table
                           columns={examColumns}
                           dataSource={report.exam?.topStudents || []}
-                          rowKey="full_name"
-                          pagination={{ pageSize: 5 }}
+                          rowKey={(record, index) =>
+                            record.id ||
+                            record.student_id ||
+                            record.full_name ||
+                            `exam-${index}`
+                          }
+                          pagination={{
+                            pageSize: 5,
+                          }}
                           size="small"
                           className="clean-table"
+                          scroll={{
+                            x: 650,
+                          }}
                         />
                       </Card>
                     </Spin>
                   ),
                 },
+
+                /* =================================================
+                   TAB 3 - DOCUMENT + EVENT
+                ================================================= */
+
                 {
                   key: "doc-event-section",
+
                   label: (
-                    <span>
-                      <FileTextOutlined /> Tài Liệu & Sự Kiện
+                    <span className="tab-label">
+                      <FileTextOutlined />
+                      Tài Liệu & Sự Kiện
                     </span>
                   ),
+
                   children: (
                     <Row gutter={[20, 20]}>
+                      {/* DOCUMENT */}
+
                       <Col xs={24} md={12}>
                         <Spin spinning={sectionLoading.document}>
                           <Card bordered={false} className="report-box-card">
                             {renderFilterBar("document", "Lọc Kho Tài Liệu")}
+
+                            <div className="card-section-heading">
+                              <Title level={5} className="chart-title">
+                                Tài Liệu Được Quan Tâm
+                              </Title>
+
+                              <Text className="chart-description">
+                                Những tài liệu có lượt xem cao
+                              </Text>
+                            </div>
+
                             <Table
                               columns={docColumns}
                               dataSource={report.document?.topViews || []}
-                              rowKey="id"
-                              pagination={{ pageSize: 5 }}
+                              rowKey={(record, index) =>
+                                record.id || `document-${index}`
+                              }
+                              pagination={{
+                                pageSize: 5,
+                              }}
                               size="small"
                               className="clean-table"
+                              scroll={{
+                                x: 520,
+                              }}
                             />
                           </Card>
                         </Spin>
                       </Col>
 
+                      {/* EVENT */}
+
                       <Col xs={24} md={12}>
                         <Spin spinning={sectionLoading.event}>
                           <Card bordered={false} className="report-box-card">
                             {renderFilterBar("event", "Lọc Diễn Biến Sự Kiện")}
-                            <ResponsiveContainer width="100%" height={240}>
+
+                            <div className="card-section-heading">
+                              <Title level={5} className="chart-title">
+                                Tăng Trưởng Sự Kiện
+                              </Title>
+
+                              <Text className="chart-description">
+                                Số lượng sự kiện được tạo theo tháng
+                              </Text>
+                            </div>
+
+                            <ResponsiveContainer width="100%" height={250}>
                               <AreaChart
                                 data={report.event?.createdByMonth || []}
                               >
                                 <defs>
                                   <linearGradient
-                                    id="colorEvent"
+                                    id="faithEventGradient"
                                     x1="0"
                                     y1="0"
                                     x2="0"
@@ -949,38 +1314,58 @@ const ReportDashboard = () => {
                                   >
                                     <stop
                                       offset="5%"
-                                      stopColor={accentGold}
-                                      stopOpacity={0.4}
+                                      stopColor={COLORS.gold}
+                                      stopOpacity={0.35}
                                     />
+
                                     <stop
                                       offset="95%"
-                                      stopColor={accentGold}
-                                      stopOpacity={0.0}
+                                      stopColor={COLORS.gold}
+                                      stopOpacity={0}
                                     />
                                   </linearGradient>
                                 </defs>
+
                                 <CartesianGrid
                                   strokeDasharray="3 3"
-                                  stroke="#E2E8F0"
+                                  stroke={COLORS.border}
+                                  vertical={false}
                                 />
+
                                 <XAxis
                                   dataKey="month"
-                                  tick={{ fill: "#64748B", fontSize: 12 }}
+                                  tick={{
+                                    fill: COLORS.muted,
+                                    fontSize: 12,
+                                  }}
+                                  axisLine={false}
+                                  tickLine={false}
                                 />
+
                                 <YAxis
-                                  tick={{ fill: "#64748B", fontSize: 12 }}
+                                  tick={{
+                                    fill: COLORS.muted,
+                                    fontSize: 12,
+                                  }}
                                   allowDecimals={false}
+                                  axisLine={false}
+                                  tickLine={false}
                                 />
+
                                 <Tooltip
-                                  formatter={(v) => [`${v} sự kiện`, "Tổng"]}
+                                  formatter={(value) => [
+                                    `${value} sự kiện`,
+                                    "Tổng",
+                                  ]}
                                 />
+
                                 <Area
                                   type="monotone"
                                   dataKey="total"
-                                  stroke={accentGold}
+                                  stroke={COLORS.gold}
                                   strokeWidth={3}
                                   fillOpacity={1}
-                                  fill="url(#colorEvent)"
+                                  fill="url(#faithEventGradient)"
                                 />
                               </AreaChart>
                             </ResponsiveContainer>
@@ -990,15 +1375,25 @@ const ReportDashboard = () => {
                     </Row>
                   ),
                 },
+
+                /* =================================================
+                   TAB 4 - LITURGICAL + VISITOR
+                ================================================= */
+
                 {
                   key: "liturgy-visitor-section",
+
                   label: (
-                    <span>
-                      <GlobalOutlined /> Phụng Vụ & Lượt Truy Cập
+                    <span className="tab-label">
+                      <GlobalOutlined />
+                      Phụng Vụ & Truy Cập
                     </span>
                   ),
+
                   children: (
                     <Row gutter={[20, 20]}>
+                      {/* LITURGICAL */}
+
                       <Col xs={24} md={12}>
                         <Spin spinning={sectionLoading.liturgical}>
                           <Card bordered={false} className="report-box-card">
@@ -1006,7 +1401,18 @@ const ReportDashboard = () => {
                               "liturgical",
                               "Lọc Lịch Lễ Phụng Vụ",
                             )}
-                            <ResponsiveContainer width="100%" height={240}>
+
+                            <div className="card-section-heading">
+                              <Title level={5} className="chart-title">
+                                Phân Bổ Thánh Lễ
+                              </Title>
+
+                              <Text className="chart-description">
+                                Thống kê số thánh lễ theo giáo xứ
+                              </Text>
+                            </div>
+
+                            <ResponsiveContainer width="100%" height={250}>
                               <PieChart>
                                 <Pie
                                   data={report.liturgical?.church || []}
@@ -1014,12 +1420,14 @@ const ReportDashboard = () => {
                                   nameKey="church_name"
                                   cx="50%"
                                   cy="50%"
-                                  outerRadius={75}
+                                  outerRadius={82}
+                                  innerRadius={36}
+                                  paddingAngle={4}
                                 >
                                   {(report.liturgical?.church || []).map(
                                     (entry, index) => (
                                       <Cell
-                                        key={index}
+                                        key={entry.church_name || index}
                                         fill={
                                           PIE_COLORS[index % PIE_COLORS.length]
                                         }
@@ -1027,9 +1435,14 @@ const ReportDashboard = () => {
                                     ),
                                   )}
                                 </Pie>
+
                                 <Tooltip
-                                  formatter={(v) => [`${v} thánh lễ`, "Tổng"]}
+                                  formatter={(value) => [
+                                    `${value} thánh lễ`,
+                                    "Tổng",
+                                  ]}
                                 />
+
                                 <Legend />
                               </PieChart>
                             </ResponsiveContainer>
@@ -1037,42 +1450,60 @@ const ReportDashboard = () => {
                         </Spin>
                       </Col>
 
+                      {/* VISITOR */}
+
                       <Col xs={24} md={12}>
                         <Spin spinning={sectionLoading.visitor}>
                           <Card bordered={false} className="report-box-card">
                             {renderFilterBar("visitor", "Lọc Truy Cập Website")}
-                            <div style={{ padding: "20px 0" }}>
-                              <Row gutter={16}>
-                                <Col span={12}>
-                                  <Statistic
-                                    title="Lượt xem hôm nay"
-                                    value={report.visitor?.todayVisitors || 0}
-                                    valueStyle={{
-                                      color: primaryNavy,
-                                      fontWeight: "bold",
-                                    }}
-                                  />
-                                </Col>
-                                <Col span={12}>
-                                  <Statistic
-                                    title="Đang Online Realtime"
-                                    value={report.visitor?.onlineUsers || 0}
-                                    valueStyle={{
-                                      color: "#10B981",
-                                      fontWeight: "bold",
-                                    }}
-                                  />
-                                </Col>
-                              </Row>
-                              <Divider style={{ margin: "16px 0" }} />
-                              <Statistic
-                                title="Tổng lượt xem tích lũy"
-                                value={report.visitor?.totalViews || 0}
-                                valueStyle={{
-                                  color: accentGold,
-                                  fontWeight: "bold",
-                                }}
-                              />
+
+                            <div className="card-section-heading">
+                              <Title level={5} className="chart-title">
+                                Hoạt Động Website
+                              </Title>
+
+                              <Text className="chart-description">
+                                Theo dõi lượng truy cập hệ thống
+                              </Text>
+                            </div>
+
+                            <Row gutter={[16, 16]}>
+                              <Col span={12}>
+                                <div className="visitor-stat">
+                                  <Text className="visitor-stat-label">
+                                    Lượt xem hôm nay
+                                  </Text>
+
+                                  <div className="visitor-stat-value">
+                                    {report.visitor?.todayVisitors || 0}
+                                  </div>
+                                </div>
+                              </Col>
+
+                              <Col span={12}>
+                                <div className="visitor-stat online">
+                                  <Text className="visitor-stat-label">
+                                    Đang Online
+                                  </Text>
+
+                                  <div className="visitor-stat-value">
+                                    <span className="online-dot" />
+                                    {report.visitor?.onlineUsers || 0}
+                                  </div>
+                                </div>
+                              </Col>
+                            </Row>
+
+                            <Divider />
+
+                            <div className="visitor-total">
+                              <Text className="visitor-stat-label">
+                                Tổng lượt xem tích lũy
+                              </Text>
+
+                              <div className="visitor-total-value">
+                                {report.visitor?.totalViews || 0}
+                              </div>
                             </div>
                           </Card>
                         </Spin>
@@ -1083,226 +1514,596 @@ const ReportDashboard = () => {
               ]}
             />
 
-            {/* MODAL XEM CHI TIẾT DỮ LIỆU */}
+            {/* =================================================
+                DETAIL MODAL
+            ================================================= */}
+
             <Modal
               title={
-                <span style={{ color: primaryNavy, fontWeight: 700 }}>
-                  {modalConfig.title}
-                </span>
+                <div className="modal-title">
+                  <span className="modal-title-icon">
+                    <FileTextOutlined />
+                  </span>
+
+                  <span>{modalConfig.title}</span>
+                </div>
               }
               open={modalConfig.visible}
               footer={null}
-              onCancel={() =>
-                setModalConfig({ ...modalConfig, visible: false })
-              }
-              width={680}
+              onCancel={closeModal}
+              width={720}
               centered
+              destroyOnClose
+              className="report-detail-modal"
             >
-              <div style={{ padding: "8px 0" }}>
-                {modalConfig.type === "exam" ? (
-                  <Table
-                    columns={examColumns}
-                    dataSource={modalConfig.data}
-                    rowKey="full_name"
-                    pagination={{ pageSize: 5 }}
-                    size="small"
-                  />
-                ) : modalConfig.type === "document" ? (
-                  <Table
-                    columns={docColumns}
-                    dataSource={modalConfig.data}
-                    rowKey="id"
-                    pagination={{ pageSize: 5 }}
-                    size="small"
-                  />
-                ) : Array.isArray(modalConfig.data) &&
-                  modalConfig.data.length > 0 &&
-                  modalConfig.data[0].key ? (
-                  <Table
-                    columns={[
-                      { title: "Chỉ số", dataIndex: "key", key: "key" },
-                      {
-                        title: "Giá trị",
-                        dataIndex: "value",
-                        key: "value",
-                        render: (v) => <Tag color="gold">{v}</Tag>,
-                      },
-                    ]}
-                    dataSource={modalConfig.data}
-                    pagination={false}
-                    size="small"
-                  />
-                ) : (
-                  <Table
-                    dataSource={modalConfig.data}
-                    rowKey={(r) => r.id || r.name || Math.random()}
-                    pagination={{ pageSize: 5 }}
-                    size="small"
-                    columns={[
-                      {
-                        title: "Tên / Tiêu đề",
-                        dataIndex: "name",
-                        render: (text, record) =>
-                          text || record.title || "Chi tiết",
-                      },
-                      {
-                        title: "Loại / Danh mục",
-                        dataIndex: "type",
-                        render: (text, record) => (
-                          <Tag color="blue">
-                            {text || record.category || "Chung"}
-                          </Tag>
-                        ),
-                      },
-                      {
-                        title: "Địa chỉ / Địa điểm",
-                        dataIndex: "address",
-                        render: (text, record) =>
-                          text || record.location || "Giáo xứ Đồng Quan",
-                      },
-                    ]}
-                  />
-                )}
-              </div>
+              <div className="modal-content">{renderModalContent()}</div>
             </Modal>
           </>
         )}
 
-        {/* STYLES SCOPED */}
+        {/* =================================================
+            STYLES
+        ================================================= */}
+
         <style
           dangerouslySetInnerHTML={{
             __html: `
-          @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+              @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
 
-          .report-dashboard-root {
-            padding: 24px;
-            background: ${softBg};
-            min-height: 100vh;
-            font-family: 'Be Vietnam Pro', sans-serif;
-            color: ${textDark};
-          }
+              * {
+                box-sizing: border-box;
+              }
 
-          .report-top-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-            gap: 16px;
-          }
+              .report-dashboard-root {
+                min-height: 100vh;
+                padding: 24px;
+                background: ${COLORS.softBg};
+                color: ${COLORS.dark};
+                font-family: 'Be Vietnam Pro', sans-serif;
+              }
 
-          .badge-sacred {
-            background: rgba(212, 175, 55, 0.15);
-            border: 1px solid ${accentGold};
-            color: ${primaryNavy};
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 6px;
-          }
+              /* =========================================
+                 LOADING
+              ========================================= */
 
-          .report-main-title {
-            font-family: 'Playfair Display', Georgia, serif !important;
-            color: ${primaryNavy} !important;
-            margin: 0 !important;
-            font-weight: 700 !important;
-          }
+              .loading-center-box {
+                min-height: 420px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              }
 
-          /* KPI Cards */
-          .kpi-card {
-            background: #FFFFFF !important;
-            border-radius: 16px !important;
-            padding: 12px 14px !important;
-            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03) !important;
-            transition: all 0.3s ease !important;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-          }
+              .loading-inner {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+                padding: 48px;
+              }
 
-          .clickable-card {
-            cursor: pointer;
-          }
+              .loading-title {
+                margin-top: 14px;
+                color: ${COLORS.navy};
+                font-size: 14px;
+                font-weight: 700;
+              }
 
-          .clickable-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
-          }
+              .loading-description {
+                color: ${COLORS.muted};
+                font-size: 12px;
+              }
 
-          .gold-line { border-left: 4px solid ${accentGold} !important; }
-          .navy-line { border-left: 4px solid ${primaryNavy} !important; }
-          .blue-line { border-left: 4px solid #3B82F6 !important; }
-          .green-line { border-left: 4px solid #10B981 !important; }
-          .purple-line { border-left: 4px solid #8B5CF6 !important; }
+              /* =========================================
+                 OVERVIEW
+              ========================================= */
 
-          .kpi-label {
-            font-size: 11px;
-            font-weight: 700;
-            color: #64748B;
-            letter-spacing: 0.5px;
-          }
+              .report-overview-section {
+                margin-top: 24px;
+                margin-bottom: 28px;
+              }
 
-          .card-footer-action {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px dashed #F1F5F9;
-          }
+              .section-heading {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
+                margin-bottom: 14px;
+                gap: 16px;
+              }
 
-          .action-text {
-            font-size: 11px;
-            color: ${accentGold};
-            font-weight: 600;
-          }
+              .section-eyebrow {
+                display: block;
+                color: ${COLORS.gold};
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 1.4px;
+                margin-bottom: 3px;
+              }
 
-          /* Section Filter Bar */
-          .section-filter-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #F1F5F9;
-            padding: 8px 14px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            gap: 10px;
-          }
+              .section-title {
+                margin: 0 !important;
+                color: ${COLORS.navy} !important;
+                font-family: 'Playfair Display', Georgia, serif !important;
+                font-weight: 700 !important;
+              }
 
-          /* Chart Cards */
-          .report-box-card {
-            border-radius: 16px !important;
-            background: #FFFFFF !important;
-            border: 1px solid #E2E8F0 !important;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02) !important;
-            padding: 8px;
-          }
+              .section-note {
+                color: ${COLORS.muted};
+                font-size: 11px;
+              }
 
-          .editorial-main-tabs .ant-tabs-nav {
-            margin-bottom: 16px !important;
-          }
+              /* =========================================
+                 KPI
+              ========================================= */
 
-          .clean-table .ant-table-thead > tr > th {
-            background: #F8FAFC !important;
-            color: ${primaryNavy} !important;
-            font-weight: 700;
-            font-size: 12px;
-          }
+              .report-kpi-col {
+                display: flex;
+              }
 
-          .loading-center-box {
-            text-align: center;
-            padding: 100px 0;
-          }
+              .report-kpi-item {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                padding-left: 4px;
+                cursor: pointer;
+                transition: transform 0.2s ease;
+              }
 
-          @media (max-width: 768px) {
-            .report-dashboard-root { padding: 14px; }
-            .section-filter-bar { flex-direction: column; align-items: flex-start; }
-          }
-        `,
+              .report-kpi-item::before {
+                content: "";
+                position: absolute;
+                z-index: 5;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 4px;
+                border-radius: 5px 0 0 5px;
+              }
+
+              .report-kpi-item.gold-line::before {
+                background: ${COLORS.gold};
+              }
+
+              .report-kpi-item.navy-line::before {
+                background: ${COLORS.navy};
+              }
+
+              .report-kpi-item.blue-line::before {
+                background: ${COLORS.blue};
+              }
+
+              .report-kpi-item.green-line::before {
+                background: ${COLORS.green};
+              }
+
+              .report-kpi-item:hover {
+                transform: translateY(-3px);
+              }
+
+              .report-kpi-item:hover .faith-stat-card {
+                box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08) !important;
+              }
+
+              .report-stat-icon {
+                width: 40px;
+                height: 40px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 12px;
+                font-size: 18px;
+              }
+
+              .report-kpi-footer {
+                position: absolute;
+                z-index: 6;
+                left: 24px;
+                right: 20px;
+                bottom: 13px;
+                padding-top: 8px;
+                border-top: 1px dashed ${COLORS.border};
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                color: ${COLORS.gold};
+                font-size: 10px;
+                font-weight: 600;
+                pointer-events: none;
+              }
+
+              /* =========================================
+                 TABS
+              ========================================= */
+
+              .editorial-main-tabs {
+                margin-top: 6px;
+              }
+
+              .editorial-main-tabs .ant-tabs-nav {
+                margin-bottom: 16px !important;
+              }
+
+              .editorial-main-tabs .ant-tabs-tab {
+                border-radius: 10px 10px 0 0 !important;
+                font-size: 12px;
+                font-weight: 600;
+              }
+
+              .tab-label {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+              }
+
+              /* =========================================
+                 FILTER
+              ========================================= */
+
+              .section-filter-bar {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 14px;
+                flex-wrap: wrap;
+                padding: 11px 14px;
+                margin-bottom: 22px;
+                border: 1px solid ${COLORS.border};
+                border-radius: 11px;
+                background: ${COLORS.softBg};
+              }
+
+              .filter-heading {
+                display: flex;
+                align-items: center;
+                gap: 9px;
+              }
+
+              .filter-icon {
+                width: 30px;
+                height: 30px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 9px;
+                background: ${COLORS.goldSoft};
+                color: ${COLORS.gold};
+                font-size: 13px;
+              }
+
+              .filter-title {
+                display: block;
+                color: ${COLORS.navy};
+                font-size: 12px;
+                font-weight: 700;
+              }
+
+              .filter-subtitle {
+                display: block;
+                margin-top: 1px;
+                color: ${COLORS.muted};
+                font-size: 10px;
+              }
+
+              /* =========================================
+                 REPORT CARD
+              ========================================= */
+
+              .report-box-card {
+                border-radius: 16px !important;
+                background: ${COLORS.white} !important;
+                border: 1px solid ${COLORS.border} !important;
+                box-shadow: 0 5px 20px rgba(15, 23, 42, 0.025) !important;
+                overflow: hidden;
+              }
+
+              .report-box-card .ant-card-body {
+                padding: 20px !important;
+              }
+
+              .chart-section {
+                min-height: 290px;
+              }
+
+              .chart-title {
+                margin: 0 !important;
+                color: ${COLORS.navy} !important;
+                font-size: 15px !important;
+                font-weight: 700 !important;
+              }
+
+              .chart-description {
+                display: block;
+                margin-top: 3px;
+                color: ${COLORS.muted};
+                font-size: 11px;
+              }
+
+              .card-section-heading {
+                margin-bottom: 16px;
+              }
+
+              /* =========================================
+                 SACRAMENT
+              ========================================= */
+
+              .sacrament-list {
+                margin-top: 28px;
+              }
+
+              .sacrament-item {
+                margin-bottom: 22px;
+              }
+
+              .sacrament-item:last-child {
+                margin-bottom: 0;
+              }
+
+              .sacrament-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                margin-bottom: 7px;
+              }
+
+              .sacrament-header .ant-typography {
+                font-size: 12px;
+              }
+
+              .sacrament-value {
+                color: ${COLORS.navy};
+                font-size: 11px;
+                font-weight: 700;
+              }
+
+              .sacrament-item .ant-progress {
+                margin: 0;
+              }
+
+              /* =========================================
+                 EXAM
+              ========================================= */
+
+              .exam-overview {
+                margin-top: 6px;
+              }
+
+              .exam-stat-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+                margin-top: 26px;
+              }
+
+              .mini-stat {
+                min-height: 115px;
+                padding: 18px;
+                border-radius: 14px;
+                border: 1px solid ${COLORS.border};
+                background: ${COLORS.softBg};
+              }
+
+              .mini-stat.gold {
+                border-color: rgba(212, 175, 55, 0.25);
+                background: rgba(212, 175, 55, 0.05);
+              }
+
+              .mini-stat-label {
+                display: block;
+                color: ${COLORS.muted};
+                font-size: 11px;
+                font-weight: 600;
+              }
+
+              .mini-stat-value {
+                margin-top: 12px;
+                color: ${COLORS.navy};
+                font-family: 'Playfair Display', Georgia, serif;
+                font-size: 28px;
+                font-weight: 700;
+              }
+
+              .mini-stat.gold .mini-stat-value {
+                color: ${COLORS.gold};
+              }
+
+              .mini-stat-value span {
+                margin-left: 3px;
+                color: ${COLORS.muted};
+                font-family: 'Be Vietnam Pro', sans-serif;
+                font-size: 11px;
+                font-weight: 500;
+              }
+
+              /* =========================================
+                 TABLE
+              ========================================= */
+
+              .table-heading {
+                margin-bottom: 15px;
+              }
+
+              .clean-table .ant-table {
+                border: 1px solid ${COLORS.softBorder};
+                border-radius: 10px;
+                overflow: hidden;
+              }
+
+              .clean-table .ant-table-thead > tr > th {
+                background: ${COLORS.softBg} !important;
+                color: ${COLORS.navy} !important;
+                font-size: 11px !important;
+                font-weight: 700 !important;
+                border-bottom: 1px solid ${COLORS.border} !important;
+              }
+
+              .clean-table .ant-table-tbody > tr > td {
+                font-size: 11px;
+                color: ${COLORS.text};
+                border-bottom: 1px solid ${COLORS.softBorder};
+              }
+
+              .clean-table .ant-table-tbody > tr:hover > td {
+                background: rgba(212, 175, 55, 0.035) !important;
+              }
+
+              /* =========================================
+                 VISITOR
+              ========================================= */
+
+              .visitor-stat {
+                min-height: 115px;
+                padding: 18px;
+                border: 1px solid ${COLORS.border};
+                border-radius: 14px;
+                background: ${COLORS.softBg};
+              }
+
+              .visitor-stat.online {
+                border-color: rgba(16, 185, 129, 0.22);
+                background: rgba(16, 185, 129, 0.035);
+              }
+
+              .visitor-stat-label {
+                display: block;
+                color: ${COLORS.muted};
+                font-size: 11px;
+                font-weight: 600;
+              }
+
+              .visitor-stat-value {
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                margin-top: 13px;
+                color: ${COLORS.navy};
+                font-family: 'Playfair Display', Georgia, serif;
+                font-size: 28px;
+                font-weight: 700;
+              }
+
+              .online-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: ${COLORS.green};
+                box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.10);
+              }
+
+              .visitor-total {
+                padding: 4px 0;
+              }
+
+              .visitor-total-value {
+                margin-top: 4px;
+                color: ${COLORS.gold};
+                font-family: 'Playfair Display', Georgia, serif;
+                font-size: 30px;
+                font-weight: 700;
+              }
+
+              /* =========================================
+                 MODAL
+              ========================================= */
+
+              .modal-title {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                color: ${COLORS.navy};
+                font-size: 15px;
+                font-weight: 700;
+              }
+
+              .modal-title-icon {
+                width: 30px;
+                height: 30px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 9px;
+                background: ${COLORS.goldSoft};
+                color: ${COLORS.gold};
+              }
+
+              .modal-content {
+                padding-top: 8px;
+              }
+
+              /* =========================================
+                 MOBILE
+              ========================================= */
+
+              @media (max-width: 768px) {
+                .report-dashboard-root {
+                  padding: 14px;
+                }
+
+                .section-heading {
+                  align-items: flex-start;
+                  flex-direction: column;
+                  gap: 4px;
+                }
+
+                .section-filter-bar {
+                  align-items: flex-start;
+                  flex-direction: column;
+                }
+
+                .filter-heading {
+                  width: 100%;
+                }
+
+                .filter-heading + .ant-space {
+                  width: 100%;
+                }
+
+                .report-box-card .ant-card-body {
+                  padding: 14px !important;
+                }
+
+                .exam-stat-grid {
+                  grid-template-columns: 1fr;
+                }
+
+                .chart-section {
+                  min-height: auto;
+                }
+
+                .report-kpi-footer {
+                  left: 24px;
+                }
+              }
+
+              @media (max-width: 480px) {
+                .report-dashboard-root {
+                  padding: 10px;
+                }
+
+                .section-title {
+                  font-size: 19px !important;
+                }
+
+                .report-stat-icon {
+                  width: 36px;
+                  height: 36px;
+                  border-radius: 10px;
+                  font-size: 16px;
+                }
+
+                .report-kpi-footer {
+                  font-size: 9px;
+                }
+
+                .mini-stat-value,
+                .visitor-stat-value {
+                  font-size: 24px;
+                }
+
+                .section-filter-bar {
+                  padding: 10px;
+                }
+              }
+            `,
           }}
         />
       </div>

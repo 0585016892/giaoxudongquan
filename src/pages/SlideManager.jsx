@@ -20,15 +20,12 @@ import {
   Badge,
 } from "antd";
 import {
-  PlusOutlined,
   DeleteOutlined,
   EditOutlined,
   PictureOutlined,
   LinkOutlined,
   OrderedListOutlined,
   CloudUploadOutlined,
-  CompassOutlined,
-  ReloadOutlined,
 } from "@ant-design/icons";
 import {
   getSlides,
@@ -38,8 +35,9 @@ import {
   updateSlideStatus,
 } from "../api/slideApi";
 import { useUser } from "../context/UserContext";
+import PageHeroHeader from "../components/common/PageHeroHeader";
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 
 // Bảng màu thiết kế Tôn Nghiêm (Editorial Sacred Palette)
 const primaryNavy = "#1B365D"; // Xanh Đêm Navy
@@ -309,44 +307,18 @@ const SlideManager = () => {
       <div className="slide-editorial-layout">
         <div className="slide-editorial-container">
           {/* HEADER SECTION */}
-          <div className="slide-header-section">
-            <div className="header-text-group">
-              <span className="sacred-badge">
-                <CompassOutlined /> HỆ THỐNG TRUYỀN THÔNG MỤC VỤ
-              </span>
-              <Title level={2} className="slide-main-title">
-                QUẢN LÝ BANNER & SLIDERS
-              </Title>
 
-              <Paragraph className="slide-sub-title">
-                Thiết lập hệ thống ảnh trình chiếu (Slideshow) banner lớn ngoài
-                trang chủ Giáo xứ.
-              </Paragraph>
-            </div>
-
-            <div className="header-action-group">
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchSlides}
-                loading={loading}
-                className="refresh-btn"
-                style={{ marginRight: 10 }}
-              >
-                Làm mới
-              </Button>
-
-              {allowRoles.includes(user?.role) && (
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => openModal()}
-                  className="add-slide-btn"
-                >
-                  Thêm Slide Mới
-                </Button>
-              )}
-            </div>
-          </div>
+          <PageHeroHeader
+            badge=" HỆ THỐNG TRUYỀN THÔNG MỤC VỤ"
+            title=" QUẢN LÝ BANNER & SLIDERS"
+            description=" Thiết lập hệ thống ảnh trình chiếu (Slideshow) banner lớn ngoài
+                trang chủ Giáo xứ."
+            onRefresh={fetchSlides}
+            refreshLoading={loading}
+            actionText="Thêm Nhân Sự Mới"
+            onAction={() => openModal()}
+            showAction={allowRoles.includes(user?.role)}
+          />
 
           {/* MAIN DATA CARD */}
           <Card bordered={false} className="main-table-card">

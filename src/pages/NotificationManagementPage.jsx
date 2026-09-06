@@ -29,11 +29,8 @@ import {
   BellOutlined,
   CheckOutlined,
   DeleteOutlined,
-  ReloadOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  NotificationOutlined,
-  PlusOutlined,
   CalendarOutlined,
   PieChartOutlined,
   EyeOutlined,
@@ -59,7 +56,7 @@ import {
   deleteNotification,
   deleteAllNotifications, // <-- Nhớ khai báo/export hàm này trong file notificationApi.js
 } from "../api/notificationApi";
-
+import PageHeroHeader from "../components/common/PageHeroHeader";
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -459,40 +456,17 @@ const NotificationPage = () => {
         <Content className="noti-page-wrapper">
           <div className="noti-page-container">
             {/* HEADER TRANG */}
-            <div className="noti-header">
-              <div>
-                <span className="noti-tag-sacred">
-                  <NotificationOutlined /> TRUNG TÂM THÔNG BÁO MỤC VỤ
-                </span>
-                <Title level={2} className="noti-title">
-                  Quản Lý & Tin Tức Giáo Xứ
-                </Title>
-                <div className="gold-accent-divider" />
-                <Paragraph className="noti-subtitle">
-                  Theo dõi tin tức sự kiện, lịch phụng vụ và các thông báo chính
-                  thức từ Giáo xứ Đồng Quan.
-                </Paragraph>
-              </div>
 
-              <Space wrap size="middle" style={{ marginTop: 12 }}>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="create-btn"
-                >
-                  Tạo Thông Báo Mới
-                </Button>
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={fetchAllData}
-                  loading={loading}
-                  className="reload-btn"
-                >
-                  Làm mới
-                </Button>
-              </Space>
-            </div>
+            <PageHeroHeader
+              badge="TRUNG TÂM THÔNG BÁO MỤC VỤ"
+              title="Quản Lý & Tin Tức Giáo Xứ"
+              description="Theo dõi tin tức sự kiện, lịch phụng vụ và các thông báo chính
+                  thức từ Giáo xứ Đồng Quan."
+              onRefresh={fetchAllData}
+              refreshLoading={loading}
+              actionText="Thêm Thông Báo Mới"
+              onAction={() => setIsCreateModalOpen(true)}
+            />
 
             {/* DASHBOARD THỐNG KÊ NHANH */}
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

@@ -21,17 +21,15 @@ import {
   GlobalOutlined,
   NotificationOutlined,
   SafetyOutlined,
-  CompassOutlined,
-  ReloadOutlined,
   FacebookOutlined,
   YoutubeOutlined,
   MailOutlined,
   PhoneOutlined,
 } from "@ant-design/icons";
-
+import PageHeroHeader from "../components/common/PageHeroHeader";
 import { getSettings, updateSettings } from "../api/settings.api";
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 // Bảng màu thiết kế Tôn Nghiêm (Editorial Sacred Palette)
@@ -44,6 +42,7 @@ export default function Settings() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(false);
+  console.log(fetchLoading);
 
   const loadSettings = useCallback(async () => {
     try {
@@ -109,40 +108,14 @@ export default function Settings() {
         <div className="settings-editorial-container">
           {/* HEADER SECTION */}
           <div className="settings-header-section">
-            <div className="header-text-group">
-              <span className="sacred-badge">
-                <CompassOutlined /> HỆ THỐNG CẤU HÌNH QUẢN TRỊ
-              </span>
-              <Title level={2} className="settings-main-title">
-                CÀI ĐẶT HỆ THỐNG GIÁO XỨ
-              </Title>
-              <Paragraph className="settings-sub-title">
-                Quản lý thông tin hành chính, quy định bí tích, thông báo trực
-                tuyến và sao lưu dữ liệu.
-              </Paragraph>
-            </div>
-
-            <div className="header-action-group">
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={loadSettings}
-                loading={fetchLoading}
-                className="refresh-btn"
-                style={{ marginRight: 10 }}
-              >
-                Làm mới
-              </Button>
-
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                loading={loading}
-                onClick={() => form.submit()}
-                className="save-settings-btn"
-              >
-                Lưu Cài Đặt
-              </Button>
-            </div>
+            <PageHeroHeader
+              badge="HỆ THỐNG CẤU HÌNH QUẢN TRỊ"
+              title="CÀI ĐẶT HỆ THỐNG GIÁO XỨ"
+              description=" Quản lý thông tin hành chính, quy định bí tích, thông báo trực
+                tuyến và sao lưu dữ liệu."
+              onRefresh={loadSettings}
+              refreshLoading={loading}
+            />
           </div>
 
           <Form layout="vertical" form={form} onFinish={onFinish}>

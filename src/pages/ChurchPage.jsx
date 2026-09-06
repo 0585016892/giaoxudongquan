@@ -37,12 +37,11 @@ import {
   GlobalOutlined,
   InfoCircleOutlined,
   CompassOutlined,
-  ReloadOutlined,
   PictureOutlined,
   UploadOutlined,
   LinkOutlined,
 } from "@ant-design/icons";
-
+import PageHeroHeader from "../components/common/PageHeroHeader";
 import { useChurch } from "../hooks/useChurch";
 import axios from "axios";
 import {
@@ -55,7 +54,7 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
@@ -446,41 +445,16 @@ const ChurchPage = () => {
       <div className="church-editorial-layout">
         <div className="church-editorial-container">
           {/* HEADER SECTION */}
-          <div className="church-header-section">
-            <div className="header-text-group">
-              <span className="sacred-badge">
-                <CompassOutlined /> HỆ THỐNG QUẢN LÝ ĐỊA GIỚI MỤC VỤ
-              </span>
-              <Title level={2} className="church-main-title">
-                DANH MỤC GIÁO XỨ & GIÁO HỌ
-              </Title>
-              <Paragraph className="church-sub-title">
-                Thiết lập hệ thống phân cấp hành chính các cơ sở nhà thờ, hình
-                ảnh và tọa độ bản đồ trực tuyến.
-              </Paragraph>
-            </div>
-
-            <div className="header-action-group">
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={loadData}
-                loading={loading}
-                className="refresh-btn"
-                style={{ marginRight: 10 }}
-              >
-                Làm mới
-              </Button>
-
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => openModal()}
-                className="add-church-btn"
-              >
-                Thêm Cơ Sở Mới
-              </Button>
-            </div>
-          </div>
+          <PageHeroHeader
+            badge="HỆ THỐNG QUẢN LÝ ĐỊA GIỚI MỤC VỤ"
+            title="DANH MỤC GIÁO XỨ & GIÁO HỌ"
+            description=" Thiết lập hệ thống phân cấp hành chính các cơ sở nhà thờ, hình
+                ảnh và tọa độ bản đồ trực tuyến."
+            onRefresh={loadData}
+            refreshLoading={loading}
+            actionText="Thêm Nhân Sự Mới"
+            onAction={() => openModal()}
+          />
 
           {/* MAIN DATA TABLE CARD */}
           <Card bordered={false} className="main-table-card">

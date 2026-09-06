@@ -24,7 +24,6 @@ import {
   ConfigProvider,
 } from "antd";
 import {
-  PlusOutlined,
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
@@ -39,8 +38,6 @@ import {
   GlobalOutlined,
   SnippetsOutlined,
   YoutubeOutlined,
-  CompassOutlined,
-  ReloadOutlined,
 } from "@ant-design/icons";
 import {
   getEvents,
@@ -55,11 +52,11 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi";
 import { useUser } from "../context/UserContext";
-
+import PageHeroHeader from "../components/common/PageHeroHeader";
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { Dragger } = Upload;
 const { Option } = Select;
 
@@ -385,41 +382,17 @@ const EventAdmin = () => {
         <div className="event-editorial-container">
           {/* HEADER BAR */}
           <div className="event-header-section">
-            <div className="header-text-group">
-              <span className="sacred-badge">
-                <CompassOutlined /> HỆ THỐNG TRUYỀN THÔNG MỤC VỤ
-              </span>
-              <Title level={2} className="event-main-title">
-                BẢN TIN & SỰ KIỆN MỤC VỤ
-              </Title>
-              <Paragraph className="event-sub-title">
-                Soạn thảo, phân loại tin tức thông báo và thiết lập tối ưu hóa
-                cấu trúc tìm kiếm SEO.
-              </Paragraph>
-            </div>
-
-            <div className="header-action-group">
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchEvents}
-                loading={loading}
-                className="refresh-btn"
-                style={{ marginRight: 10 }}
-              >
-                Làm mới
-              </Button>
-
-              {allowRoles.includes(user?.role) && (
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={openCreate}
-                  className="add-event-btn"
-                >
-                  Viết Bài Mới
-                </Button>
-              )}
-            </div>
+            <PageHeroHeader
+              badge=" HỆ THỐNG TRUYỀN THÔNG MỤC VỤ"
+              title=" BẢN TIN & SỰ KIỆN MỤC VỤ"
+              description=" Soạn thảo, phân loại tin tức thông báo và thiết lập tối ưu hóa
+                cấu trúc tìm kiếm SEO."
+              onRefresh={fetchEvents}
+              refreshLoading={loading}
+              actionText=" Viết Bài Mới"
+              onAction={() => openCreate()}
+              showAction={allowRoles.includes(user?.role)}
+            />
           </div>
 
           {/* SYSTEM STATS BENTO GRID */}

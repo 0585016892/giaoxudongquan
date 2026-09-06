@@ -134,10 +134,6 @@ export function UserProvider({ children }) {
   // LOGOUT
   // ================================
   const logout = () => {
-    const currentRole = user?.role;
-
-    console.log("🚪 [AUTH] LOGOUT:", currentRole);
-
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("catechist_user");
@@ -145,12 +141,7 @@ export function UserProvider({ children }) {
 
     setUser(null);
 
-    if (currentRole === "catechist" || currentRole === "teacher") {
-      window.location.replace("/");
-      return;
-    }
-
-    window.location.replace("/giao-xu/login");
+    window.location.replace("/");
   };
 
   return (
