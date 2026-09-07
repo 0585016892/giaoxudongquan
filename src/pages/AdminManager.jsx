@@ -512,9 +512,10 @@ export default function AdminManager() {
 
       case "media_manager":
         return "QUẢN LÝ TRUYỀN THÔNG";
-
-      case "catechist":
+      case "admin_catechist":
         return "QUẢN TRỊ VIÊN GIÁO LÝ";
+      case "catechist":
+        return "HUẤN LUYỆN VIÊN";
       case "teacher":
         return "GIÁO LÝ VIÊN";
 
@@ -536,6 +537,8 @@ export default function AdminManager() {
 
       case "media_manager":
         return "green";
+      case "admin_catechist":
+        return "yellow";
 
       case "catechist":
         return "purple";
@@ -972,7 +975,15 @@ export default function AdminManager() {
                       label: "Quản lý truyền thông",
                     },
                     {
+                      value: "admin_catechist",
+                      label: "Quản trị viên giáo lý",
+                    },
+                    {
                       value: "catechist",
+                      label: "Huấn luyện viên",
+                    },
+                    {
+                      value: "teacher",
                       label: "Giáo lý viên",
                     },
                   ]}
@@ -1556,7 +1567,10 @@ export default function AdminManager() {
                         Quản lý truyền thông
                       </Option>
 
-                      <Option value="catechist">Quản trị viên Giáo lý</Option>
+                      <Option value="admin_catechist">
+                        Quản trị viên Giáo lý
+                      </Option>
+                      <Option value="catechist">Huấn luyện viên</Option>
                       <Option value="teacher">Giáo lý viên</Option>
                     </Select>
                   </Form.Item>

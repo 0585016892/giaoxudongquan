@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+
 import {
   getChurches,
   createChurch,
@@ -6,15 +7,18 @@ import {
   getChurchById,
   deleteChurch,
   toggleChurchActive,
+  activateChurchLicense,
 } from "../api/churchApi";
 
 export const useChurch = () => {
   const fetchChurches = useCallback(async (params) => {
     return await getChurches(params);
   }, []);
+
   const getChurchId = useCallback(async (params) => {
     return await getChurchById(params);
   }, []);
+
   const addChurch = useCallback(async (data) => {
     return await createChurch(data);
   }, []);
@@ -31,6 +35,11 @@ export const useChurch = () => {
     return await toggleChurchActive(id);
   }, []);
 
+  // Kích hoạt license FaithEdu
+  const activateLicense = useCallback(async (churchId) => {
+    return await activateChurchLicense(churchId);
+  }, []);
+
   return {
     fetchChurches,
     addChurch,
@@ -38,5 +47,6 @@ export const useChurch = () => {
     getChurchId,
     removeChurch,
     toggleActive,
+    activateLicense,
   };
 };

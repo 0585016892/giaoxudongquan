@@ -55,3 +55,8 @@ export const searchChurchMap = async (params) => {
   const res = await axios.get(`/churches/map/search`, { params });
   return res.data;
 };
+export const activateChurchLicense = async (churchId) => {
+  const response = await axios.post(`/churches/${churchId}/activate-license`);
+
+  return response.data;
+};
