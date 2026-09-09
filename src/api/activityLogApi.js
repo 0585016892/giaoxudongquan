@@ -11,3 +11,12 @@ export const getActivityLogs = () => {
 export const getActivityLogDetail = (id) => {
   return axios.get(`/activity-logs/${id}`);
 };
+
+// DELETE SELECTED LOGS
+export const deleteActivityLogs = (ids) => {
+  return axios.delete("/activity-logs", {
+    data: {
+      ids,
+    },
+  });
+};

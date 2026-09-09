@@ -18,6 +18,7 @@ import {
   Drawer,
   Descriptions,
   Badge,
+  Modal,
 } from "antd";
 
 import {
@@ -37,7 +38,7 @@ import {
 
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
-import { getActivityLogs } from "../api/activityLogApi";
+import { getActivityLogs, deleteActivityLogs } from "../api/activityLogApi";
 import PageHeroHeader from "../components/common/PageHeroHeader";
 import StatCard from "../components/common/StatCard";
 dayjs.extend(isBetween);
@@ -55,6 +56,8 @@ const softBg = "#FAFAFA";
 export default function ActivityLogsPage() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [deleting, setDeleting] = useState(false);
 
   // Bộ lọc nâng cao
   const [search, setSearch] = useState("");
@@ -160,7 +163,55 @@ export default function ActivityLogsPage() {
         };
     }
   };
+  const handleDeleteSelected = () => {
+    if (!selectedRowKeys.length) {
+      message.warning("Vui lòng chọn ít nhất một log để xóa");
+      return;
+    }
 
+    Modal.confirm({
+      title: "Xóa nhật ký hoạt động?",
+      content: (
+        <div>
+          Bạn có chắc muốn xóa <strong>{selectedRowKeys.length} log</strong> đã
+          chọn?
+          <br />
+          <span style={{ color: "#c62828", fontSize: 12 }}>
+            Thao tác này không thể hoàn tác.
+          </span>
+        </div>
+      ),
+      okText: "Xóa log",
+      cancelText: "Hủy",
+      okButtonProps: {
+        danger: true,
+      },
+
+      onOk: async () => {
+        try {
+          setDeleting(true);
+
+          const res = await deleteActivityLogs(selectedRowKeys);
+
+          message.success(
+            res.data?.message || `Đã xóa ${selectedRowKeys.length} log`,
+          );
+
+          setSelectedRowKeys([]);
+
+          await fetchLogs();
+        } catch (err) {
+          console.error("DELETE SELECTED LOGS ERROR:", err);
+
+          message.error(
+            err.response?.data?.message || "Không thể xóa các log đã chọn",
+          );
+        } finally {
+          setDeleting(false);
+        }
+      },
+    });
+  };
   const columns = [
     {
       title: "STT",
@@ -304,7 +355,19 @@ export default function ActivityLogsPage() {
       ),
     },
   ];
+  const rowSelection = {
+    selectedRowKeys,
 
+    onChange: (newSelectedRowKeys) => {
+      setSelectedRowKeys(newSelectedRowKeys);
+    },
+
+    selections: [
+      Table.SELECTION_ALL,
+      Table.SELECTION_INVERT,
+      Table.SELECTION_NONE,
+    ],
+  };
   return (
     <ConfigProvider
       theme={{
@@ -445,16 +508,80 @@ export default function ActivityLogsPage() {
 
           {/* MAIN TABLE CARD */}
           <Card bordered={false} className="main-table-card">
+            {/* TOOLBAR */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 16,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                {selectedRowKeys.length > 0 ? (
+                  <Text
+                    style={{
+                      color: primaryNavy,
+                      fontWeight: 600,
+                      fontSize: 13,
+                    }}
+                  >
+                    Đã chọn{" "}
+                    <span
+                      style={{
+                        color: accentGold,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {selectedRowKeys.length}
+                    </span>{" "}
+                    log
+                  </Text>
+                ) : (
+                  <Text
+                    type="secondary"
+                    style={{
+                      fontSize: 13,
+                    }}
+                  >
+                    Chọn các bản ghi cần thao tác
+                  </Text>
+                )}
+              </div>
+
+              <Space wrap>
+                {selectedRowKeys.length > 0 && (
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
+                    loading={deleting}
+                    onClick={handleDeleteSelected}
+                    style={{
+                      borderRadius: 10,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Xóa {selectedRowKeys.length} log
+                  </Button>
+                )}
+              </Space>
+            </div>
+
             <Table
               rowKey="id"
-              loading={loading}
+              rowSelection={rowSelection}
+              loading={loading || deleting}
               columns={columns}
               dataSource={filteredLogs}
               pagination={{
                 pageSize: 12,
                 showTotal: (total) =>
                   `Tổng cộng: ${total} vết bản ghi hệ thống`,
-                style: { marginTop: 20 },
+                style: {
+                  marginTop: 20,
+                },
               }}
               scroll={{ x: 900 }}
               className="custom-admin-table"
