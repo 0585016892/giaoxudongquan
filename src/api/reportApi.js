@@ -44,6 +44,9 @@ export const getSlideReport = (params) => {
 export const getVisitorReport = (params) => {
   return axiosClient.get("/report/visitors", { params });
 };
+export const getStats = (params) => {
+  return axiosClient.get("/report/stats", { params });
+};
 
 /**
  * 10. TẢI / XUẤT FILE BÁO CÁO (CSV / Excel)

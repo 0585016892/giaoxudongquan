@@ -243,6 +243,11 @@ export default function AdminSidebar({ collapsed }) {
                 label: "Báo cáo & Thống kê",
               },
               {
+                key: "/reports-faithedu",
+                icon: <BarChartOutlined />,
+                label: "Báo cáo FaithEdu",
+              },
+              {
                 key: "/activity-logs",
                 icon: <HistoryOutlined />,
                 label: "Nhật ký hệ thống",

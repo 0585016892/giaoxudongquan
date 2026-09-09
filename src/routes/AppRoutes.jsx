@@ -38,6 +38,7 @@ import ContactPage from "../pages/ContactPage";
 import StudentsPage from "../pages/StudentsPage";
 import DailyVerseAdmin from "../pages/admin/DailyVerseAdmin";
 import CorsManagementPage from "../pages/admin/CorsManagementPage";
+import FaithEduSystemDashboard from "../pages/admin/FaithEduSystemDashboard";
 
 // ==================== CERTIFICATE ====================
 import CertificatePage from "../components/CertificatePage";
@@ -148,6 +149,11 @@ export default function AppRoutes() {
                 Reports / statistics
                 -------------------------------------------------- */}
             <Route path="/reports" element={<ReportDashboard />} />
+
+            <Route
+              path="/reports-faithedu"
+              element={<FaithEduSystemDashboard />}
+            />
 
             <Route path="/statistics" element={<VisitorAnalytics />} />
 
