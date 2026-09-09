@@ -50,6 +50,7 @@ import {
 
 import PageHeroHeader from "../components/common/PageHeroHeader";
 import { useChurch } from "../hooks/useChurch";
+import { useUser } from "../context/UserContext";
 import axios from "../api/axios";
 
 import {
@@ -175,23 +176,9 @@ const ChurchPage = () => {
   // ====================================================
   // CURRENT USER
   // ====================================================
+  const { user } = useUser();
 
-  const currentUser = useMemo(() => {
-    try {
-      const raw = localStorage.getItem("user");
-
-      if (!raw) {
-        return null;
-      }
-
-      return JSON.parse(raw);
-    } catch (error) {
-      console.error("Parse current user error:", error);
-      return null;
-    }
-  }, []);
-
-  const isSystemAdmin = currentUser?.role === "admin";
+  const isSystemAdmin = user?.role === "admin";
 
   // ====================================================
   // IMAGE URL

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 
 import {
   Table,
@@ -24,6 +24,9 @@ import {
   ConfigProvider,
   Descriptions,
   Divider,
+  Tabs,
+  Badge,
+  Empty,
 } from "antd";
 
 import {
@@ -33,11 +36,7 @@ import {
   UserOutlined,
   KeyOutlined,
   MailOutlined,
-  PhoneOutlined,
   LockOutlined,
-  IdcardOutlined,
-  HomeOutlined,
-  BookOutlined,
   TeamOutlined,
   CheckCircleOutlined,
   SafetyCertificateOutlined,
@@ -45,6 +44,8 @@ import {
   SearchOutlined,
   ClearOutlined,
   CrownOutlined,
+  BankOutlined,
+  AppstoreOutlined,
 } from "@ant-design/icons";
 
 import dayjs from "dayjs";
@@ -60,9 +61,11 @@ import {
 
 import { useUser } from "../context/UserContext";
 import { useChurch } from "../hooks/useChurch";
+
 import PageHeroHeader from "../components/common/PageHeroHeader";
 import StatCard from "../components/common/StatCard";
-const { Title, Text, Paragraph } = Typography;
+
+const { Title, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
@@ -72,7 +75,6 @@ const { TextArea } = Input;
 
 const primaryNavy = "#1B365D";
 const accentGold = "#D4AF37";
-const textDark = "#1E293B";
 const softBg = "#FAFAFA";
 
 export default function AdminManager() {
@@ -94,6 +96,12 @@ export default function AdminManager() {
 
   const [loading, setLoading] = useState(false);
   const [churchLoading, setChurchLoading] = useState(false);
+
+  // ======================================================
+  // ACTIVE CHURCH TAB
+  // ======================================================
+
+  const [activeChurchTab, setActiveChurchTab] = useState("all");
 
   // ======================================================
   // DRAWER CREATE / EDIT
@@ -183,22 +191,58 @@ export default function AdminManager() {
   }, [fetchAdmins]);
 
   // ======================================================
+  // CHURCH MAP
+  // ======================================================
+
+  const churchMap = useMemo(() => {
+    const map = {};
+
+    dataChurch.forEach((church) => {
+      map[church.id] = church;
+    });
+
+    return map;
+  }, [dataChurch]);
+
+  // ======================================================
+  // ADMINS BY ACTIVE CHURCH
+  // ======================================================
+
+  const adminsByChurch = useMemo(() => {
+    if (activeChurchTab === "all") {
+      return admins;
+    }
+
+    return admins.filter(
+      (item) => Number(item.church_id) === Number(activeChurchTab),
+    );
+  }, [admins, activeChurchTab]);
+
+  // ======================================================
   // STATISTICS
   // ======================================================
 
-  const totalStaff = admins.length;
+  const totalStaff = adminsByChurch.length;
 
-  const totalPriests = admins.filter((item) => item.role === "priest").length;
+  const totalPriests = adminsByChurch.filter(
+    (item) => item.role === "priest",
+  ).length;
 
-  const activeStaff = admins.filter(
+  const activeStaff = adminsByChurch.filter(
     (item) => Number(item.is_active) === 1,
   ).length;
 
-  // const totalMembers = admins.filter(
-  //   (item) => item.account_type === "member",
-  // ).length;
-
-  // const totalVip = admins.filter((item) => item.account_type === "vip").length;
+  // ======================================================
+  // CHURCH TAB COUNT
+  // ======================================================
+  const getChurchStaffCount = useCallback(
+    (churchId) => {
+      return admins.filter(
+        (admin) => Number(admin.church_id) === Number(churchId),
+      ).length;
+    },
+    [admins],
+  );
 
   // ======================================================
   // AUTO USERNAME FROM EMAIL
@@ -236,8 +280,11 @@ export default function AdminManager() {
 
       form.setFieldsValue({
         ...record,
+
         account_type: record.account_type || "member",
+
         birthday: record.birthday ? dayjs(record.birthday) : null,
+
         ordination_date: record.ordination_date
           ? dayjs(record.ordination_date)
           : null,
@@ -263,6 +310,10 @@ export default function AdminManager() {
       form.setFieldsValue({
         role: "admin",
         account_type: "member",
+
+        // Nếu đang ở tab giáo xứ thì tự chọn giáo xứ đó
+        church_id:
+          activeChurchTab !== "all" ? Number(activeChurchTab) : undefined,
       });
 
       setFileList([]);
@@ -270,7 +321,7 @@ export default function AdminManager() {
   };
 
   // ======================================================
-  // CLOSE CREATE / EDIT DRAWER
+  // CLOSE DRAWER
   // ======================================================
 
   const closeDrawer = () => {
@@ -291,11 +342,13 @@ export default function AdminManager() {
 
   const openViewDrawer = (record) => {
     setViewRecord(record);
+
     setViewOpen(true);
   };
 
   const closeViewDrawer = () => {
     setViewOpen(false);
+
     setViewRecord(null);
   };
 
@@ -310,7 +363,6 @@ export default function AdminManager() {
       const formData = new FormData();
 
       Object.keys(values).forEach((key) => {
-        // Avatar xử lý riêng
         if (key === "avatar") return;
 
         const value = values[key];
@@ -319,7 +371,6 @@ export default function AdminManager() {
           return;
         }
 
-        // DatePicker
         if (key === "birthday" || key === "ordination_date") {
           formData.append(key, value ? value.format("YYYY-MM-DD") : "");
 
@@ -329,19 +380,11 @@ export default function AdminManager() {
         formData.append(key, value);
       });
 
-      // ==================================================
-      // ACCOUNT TYPE
-      // LẤY ĐÚNG GIÁ TRỊ USER CHỌN
-      // member / vip
-      // ==================================================
-
       const accountType = values.account_type || "member";
 
       formData.set("account_type", accountType);
 
-      // ==================================================
       // AVATAR
-      // ==================================================
 
       if (fileList && fileList.length > 0 && fileList[0]?.originFileObj) {
         formData.append("avatar", fileList[0].originFileObj);
@@ -352,19 +395,11 @@ export default function AdminManager() {
       if (editing) {
         await updateAdmin(editing.id, formData);
 
-        message.success(
-          `Cập nhật tài khoản ${
-            accountType === "vip" ? "VIP" : "Member"
-          } thành công!`,
-        );
+        message.success("Cập nhật tài khoản thành công!");
       } else {
         await createAdmin(formData);
 
-        message.success(
-          `Tạo tài khoản ${
-            accountType === "vip" ? "VIP" : "Member"
-          } thành công!`,
-        );
+        message.success("Tạo tài khoản mới thành công!");
       }
 
       closeDrawer();
@@ -389,6 +424,7 @@ export default function AdminManager() {
 
   const openResetPassword = (record) => {
     setResetUser(record);
+
     setResetModalOpen(true);
 
     resetForm.resetFields();
@@ -396,6 +432,7 @@ export default function AdminManager() {
 
   const closeResetPassword = () => {
     setResetModalOpen(false);
+
     setResetUser(null);
 
     resetForm.resetFields();
@@ -496,7 +533,7 @@ export default function AdminManager() {
   };
 
   // ======================================================
-  // ROLE LABEL
+  // ROLE
   // ======================================================
 
   const getRoleLabel = (role) => {
@@ -512,10 +549,13 @@ export default function AdminManager() {
 
       case "media_manager":
         return "QUẢN LÝ TRUYỀN THÔNG";
+
       case "admin_catechist":
-        return "QUẢN TRỊ VIÊN GIÁO LÝ";
+        return "QUẢN TRỊ GIÁO LÝ";
+
       case "catechist":
         return "HUẤN LUYỆN VIÊN";
+
       case "teacher":
         return "GIÁO LÝ VIÊN";
 
@@ -537,11 +577,15 @@ export default function AdminManager() {
 
       case "media_manager":
         return "green";
+
       case "admin_catechist":
-        return "yellow";
+        return "orange";
 
       case "catechist":
         return "purple";
+
+      case "teacher":
+        return "cyan";
 
       default:
         return "default";
@@ -553,12 +597,33 @@ export default function AdminManager() {
   // ======================================================
 
   const getAccountTypeLabel = (type) => {
-    if (type === "vip") {
-      return "VIP";
-    }
-
-    return "MEMBER";
+    return type === "vip" ? "VIP" : "MEMBER";
   };
+
+  // ======================================================
+  // FILTER DATA
+  // ======================================================
+
+  const filteredAdmins = useMemo(() => {
+    return adminsByChurch.filter((item) => {
+      const keyword = searchText.trim().toLowerCase();
+
+      const matchName =
+        !keyword ||
+        item.full_name?.toLowerCase().includes(keyword) ||
+        item.username?.toLowerCase().includes(keyword) ||
+        item.email?.toLowerCase().includes(keyword);
+
+      const matchRole = !roleFilter || item.role === roleFilter;
+
+      const matchStatus =
+        statusFilter === ""
+          ? true
+          : Number(item.is_active) === Number(statusFilter);
+
+      return matchName && matchRole && matchStatus;
+    });
+  }, [adminsByChurch, searchText, roleFilter, statusFilter]);
 
   // ======================================================
   // TABLE COLUMNS
@@ -566,7 +631,7 @@ export default function AdminManager() {
 
   const columns = [
     {
-      title: "Thành viên mục vụ",
+      title: "Nhân sự",
       key: "user",
       render: (_, record) => (
         <Space size="middle">
@@ -581,10 +646,10 @@ export default function AdminManager() {
             style={{
               background:
                 record.role === "priest"
-                  ? "linear-gradient(135deg, #8b0000 0%, #a81c1c 100%)"
-                  : `linear-gradient(135deg, ${primaryNavy} 0%, #0f2342 100%)`,
+                  ? "linear-gradient(135deg, #8b0000, #a81c1c)"
+                  : `linear-gradient(135deg, ${primaryNavy}, #0f2342)`,
+
               border: `1px solid ${accentGold}`,
-              boxShadow: "0 2px 8px rgba(27, 54, 93, 0.12)",
             }}
           />
 
@@ -596,25 +661,19 @@ export default function AdminManager() {
                 fontSize: 15,
               }}
             >
-              {record.saint_name ? (
-                <span>
-                  <Text
-                    type="secondary"
-                    style={{
-                      marginRight: 4,
-                      fontWeight: 600,
-                      fontSize: 13,
-                      color: accentGold,
-                    }}
-                  >
-                    {record.saint_name}
-                  </Text>
-
-                  {record.full_name}
+              {record.saint_name && (
+                <span
+                  style={{
+                    color: accentGold,
+                    marginRight: 4,
+                    fontSize: 13,
+                  }}
+                >
+                  {record.saint_name}
                 </span>
-              ) : (
-                record.full_name
               )}
+
+              {record.full_name}
             </div>
 
             <Text
@@ -622,7 +681,6 @@ export default function AdminManager() {
               style={{
                 fontSize: 11,
                 fontFamily: "monospace",
-                color: "#64748b",
               }}
             >
               @{record.username}
@@ -635,15 +693,15 @@ export default function AdminManager() {
     {
       title: "Chức danh",
       dataIndex: "position",
+
       render: (position) => (
         <span
           style={{
             fontWeight: 600,
-            color: textDark,
             fontSize: 13,
           }}
         >
-          {position || <Text type="secondary">—</Text>}
+          {position || "—"}
         </span>
       ),
     },
@@ -651,6 +709,7 @@ export default function AdminManager() {
     {
       title: "Vai trò",
       dataIndex: "role",
+
       render: (role) => (
         <Tag
           color={getRoleColor(role)}
@@ -664,11 +723,38 @@ export default function AdminManager() {
       ),
     },
 
+    // Chỉ hiện giáo xứ khi đang xem tất cả
+
+    ...(activeChurchTab === "all"
+      ? [
+          {
+            title: "Giáo xứ",
+            key: "church",
+
+            render: (_, record) => (
+              <Tag
+                icon={<BankOutlined />}
+                color="geekblue"
+                style={{
+                  borderRadius: 8,
+                  fontWeight: 600,
+                }}
+              >
+                {record.church_name ||
+                  churchMap[record.church_id]?.name ||
+                  "Chưa xác định"}
+              </Tag>
+            ),
+          },
+        ]
+      : []),
+
     {
-      title: "Loại tài khoản",
+      title: "Loại TK",
       dataIndex: "account_type",
-      width: 140,
+      width: 120,
       align: "center",
+
       render: (type) => (
         <Tag
           icon={type === "vip" ? <CrownOutlined /> : <UserOutlined />}
@@ -686,16 +772,16 @@ export default function AdminManager() {
     {
       title: "Trạng thái",
       dataIndex: "is_active",
-      width: 150,
+      width: 130,
       align: "center",
+
       render: (val, record) => (
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 4,
+            gap: 5,
             flexDirection: "column",
-            justifyContent: "center",
           }}
         >
           {allowRoles.includes(user?.role) && (
@@ -710,10 +796,10 @@ export default function AdminManager() {
           <Tag
             color={Number(val) === 1 ? "green" : "default"}
             style={{
-              fontWeight: 600,
-              borderRadius: 8,
               fontSize: 10,
               margin: 0,
+              borderRadius: 8,
+              fontWeight: 600,
             }}
           >
             {Number(val) === 1 ? "HOẠT ĐỘNG" : "ĐANG KHÓA"}
@@ -727,9 +813,10 @@ export default function AdminManager() {
       key: "actions",
       width: 150,
       align: "center",
+
       render: (_, record) => (
-        <Space size="small">
-          <Tooltip title="Xem chi tiết hồ sơ">
+        <Space size={2}>
+          <Tooltip title="Xem hồ sơ">
             <Button
               type="text"
               shape="circle"
@@ -737,7 +824,6 @@ export default function AdminManager() {
                 <EyeOutlined
                   style={{
                     color: primaryNavy,
-                    fontSize: 16,
                   }}
                 />
               }
@@ -754,7 +840,6 @@ export default function AdminManager() {
                   <KeyOutlined
                     style={{
                       color: accentGold,
-                      fontSize: 16,
                     }}
                   />
                 }
@@ -764,7 +849,7 @@ export default function AdminManager() {
           )}
 
           {allowRoles.includes(user?.role) && (
-            <Tooltip title="Sửa hồ sơ">
+            <Tooltip title="Chỉnh sửa">
               <Button
                 type="text"
                 shape="circle"
@@ -772,7 +857,6 @@ export default function AdminManager() {
                   <EditOutlined
                     style={{
                       color: primaryNavy,
-                      fontSize: 16,
                     }}
                   />
                 }
@@ -784,7 +868,7 @@ export default function AdminManager() {
           {allowRoles.includes(user?.role) && (
             <Popconfirm
               title="Xóa nhân sự này?"
-              description="Tài khoản sẽ bị gỡ vĩnh viễn khỏi hệ thống."
+              description="Tài khoản sẽ bị xóa khỏi hệ thống."
               okText="Xóa"
               cancelText="Hủy"
               okButtonProps={{
@@ -792,18 +876,12 @@ export default function AdminManager() {
               }}
               onConfirm={() => handleDelete(record)}
             >
-              <Tooltip title="Xóa nhân sự">
+              <Tooltip title="Xóa">
                 <Button
                   type="text"
                   shape="circle"
                   danger
-                  icon={
-                    <DeleteOutlined
-                      style={{
-                        fontSize: 16,
-                      }}
-                    />
-                  }
+                  icon={<DeleteOutlined />}
                 />
               </Tooltip>
             </Popconfirm>
@@ -814,27 +892,64 @@ export default function AdminManager() {
   ];
 
   // ======================================================
-  // FILTER DATA
+  // TAB ITEMS
   // ======================================================
 
-  const filteredAdmins = admins.filter((item) => {
-    const keyword = searchText.trim().toLowerCase();
+  const tabItems = useMemo(() => {
+    const items = [
+      {
+        key: "all",
 
-    const matchName =
-      !keyword ||
-      item.full_name?.toLowerCase().includes(keyword) ||
-      item.username?.toLowerCase().includes(keyword) ||
-      item.email?.toLowerCase().includes(keyword);
+        label: (
+          <div className="church-tab-label">
+            <AppstoreOutlined />
 
-    const matchRole = !roleFilter || item.role === roleFilter;
+            <span>Tất cả</span>
 
-    const matchStatus =
-      statusFilter === ""
-        ? true
-        : Number(item.is_active) === Number(statusFilter);
+            <Badge
+              count={admins.length}
+              showZero
+              overflowCount={999}
+              className="church-tab-badge"
+            />
+          </div>
+        ),
+      },
+    ];
 
-    return matchName && matchRole && matchStatus;
-  });
+    dataChurch.forEach((church) => {
+      const count = getChurchStaffCount(church.id);
+
+      items.push({
+        key: String(church.id),
+
+        label: (
+          <div className="church-tab-label">
+            <BankOutlined />
+
+            <span>{church.name}</span>
+
+            <Badge
+              count={count}
+              showZero
+              overflowCount={999}
+              className="church-tab-badge"
+            />
+          </div>
+        ),
+      });
+    });
+
+    return items;
+  }, [dataChurch, admins, getChurchStaffCount]);
+  // ======================================================
+  // ACTIVE CHURCH NAME
+  // ======================================================
+
+  const activeChurchName =
+    activeChurchTab === "all"
+      ? "Toàn bộ hệ thống"
+      : churchMap[activeChurchTab]?.name || "Giáo xứ";
 
   // ======================================================
   // RENDER
@@ -860,7 +975,7 @@ export default function AdminManager() {
           <PageHeroHeader
             badge="HỆ THỐNG ĐIỀU HÀNH MỤC VỤ"
             title="BAN ĐIỀU HÀNH & HỘI ĐỒNG MỤC VỤ"
-            description="Quản lý phân quyền tài khoản hệ thống nội bộ Giáo xứ Đồng Quan."
+            description="Quản lý nhân sự và tài khoản theo từng giáo xứ trong hệ thống."
             onRefresh={fetchAdmins}
             refreshLoading={loading}
             actionText="Thêm Nhân Sự Mới"
@@ -868,6 +983,43 @@ export default function AdminManager() {
             showAction={allowRoles.includes(user?.role)}
           />
 
+          {/* ==================================================
+              CHURCH TABS
+          ================================================== */}
+
+          <Card bordered={false} className="church-tabs-card">
+            <div className="church-tabs-header">
+              <div>
+                <Text className="church-tabs-title">
+                  <BankOutlined />
+                  PHÂN LOẠI THEO GIÁO XỨ
+                </Text>
+
+                <Text className="church-tabs-desc">
+                  Chọn giáo xứ để quản lý nhân sự riêng biệt.
+                </Text>
+              </div>
+
+              <Tag
+                color="gold"
+                style={{
+                  borderRadius: 20,
+                  fontWeight: 700,
+                  padding: "4px 10px",
+                }}
+              >
+                {dataChurch.length} GIÁO XỨ
+              </Tag>
+            </div>
+
+            <Tabs
+              activeKey={activeChurchTab}
+              onChange={setActiveChurchTab}
+              items={tabItems}
+              className="church-tabs"
+              tabBarGutter={8}
+            />
+          </Card>
           {/* ==================================================
               STATISTICS
           ================================================== */}
@@ -1035,23 +1187,77 @@ export default function AdminManager() {
           ================================================== */}
 
           <Card bordered={false} className="main-table-card">
-            <Table
-              rowKey="id"
-              loading={loading}
-              columns={columns}
-              dataSource={filteredAdmins}
-              pagination={{
-                pageSize: 8,
-                showTotal: (total) => `Tổng số: ${total} nhân sự`,
-                style: {
-                  marginTop: 20,
-                },
+            <div className="table-card-header">
+              <div>
+                <Title
+                  level={5}
+                  style={{
+                    margin: 0,
+                    color: primaryNavy,
+                  }}
+                >
+                  DANH SÁCH NHÂN SỰ
+                </Title>
+
+                <Text type="secondary">
+                  {activeChurchName}
+                  {" · "}
+                  {filteredAdmins.length} nhân sự
+                </Text>
+              </div>
+
+              {activeChurchTab !== "all" && (
+                <Tag
+                  color="blue"
+                  icon={<BankOutlined />}
+                  style={{
+                    borderRadius: 20,
+                    fontWeight: 600,
+                  }}
+                >
+                  Đang lọc theo giáo xứ
+                </Tag>
+              )}
+            </div>
+
+            <Divider
+              style={{
+                margin: "12px 0 16px",
               }}
-              scroll={{
-                x: 1000,
-              }}
-              className="custom-admin-table"
             />
+
+            {filteredAdmins.length === 0 && !loading ? (
+              <Empty
+                description="Chưa có nhân sự phù hợp"
+                style={{
+                  padding: "40px 0",
+                }}
+              >
+                {allowRoles.includes(user?.role) && (
+                  <Button type="primary" onClick={() => openDrawer()}>
+                    Thêm nhân sự
+                  </Button>
+                )}
+              </Empty>
+            ) : (
+              <Table
+                rowKey="id"
+                loading={loading}
+                columns={columns}
+                dataSource={filteredAdmins}
+                pagination={{
+                  pageSize: 8,
+                  showTotal: (total) => `Tổng số: ${total} nhân sự`,
+                  style: {
+                    marginTop: 20,
+                  },
+                }}
+                scroll={{
+                  x: 1000,
+                }}
+                className="custom-admin-table"
+              />
+            )}
           </Card>
         </div>
 
@@ -1078,8 +1284,6 @@ export default function AdminManager() {
         >
           {viewRecord && (
             <div>
-              {/* PROFILE HEADER */}
-
               <div className="profile-header-card">
                 <Avatar
                   size={80}
@@ -1092,7 +1296,9 @@ export default function AdminManager() {
                   style={{
                     background:
                       viewRecord.role === "priest" ? "#8b0000" : primaryNavy,
+
                     border: "2px solid " + accentGold,
+
                     marginBottom: 12,
                   }}
                 />
@@ -1114,7 +1320,6 @@ export default function AdminManager() {
                 <Text
                   type="secondary"
                   style={{
-                    fontSize: 13,
                     display: "block",
                     marginTop: 4,
                   }}
@@ -1127,40 +1332,14 @@ export default function AdminManager() {
                     marginTop: 10,
                   }}
                 >
-                  <Tag
-                    color={getRoleColor(viewRecord.role)}
-                    style={{
-                      fontWeight: 600,
-                      borderRadius: 6,
-                    }}
-                  >
+                  <Tag color={getRoleColor(viewRecord.role)}>
                     {getRoleLabel(viewRecord.role)}
-                  </Tag>
-
-                  <Tag
-                    icon={
-                      viewRecord.account_type === "vip" ? (
-                        <CrownOutlined />
-                      ) : (
-                        <UserOutlined />
-                      )
-                    }
-                    color={viewRecord.account_type === "vip" ? "gold" : "blue"}
-                    style={{
-                      fontWeight: 600,
-                      borderRadius: 6,
-                    }}
-                  >
-                    {getAccountTypeLabel(viewRecord.account_type)}
                   </Tag>
 
                   <Tag
                     color={
                       Number(viewRecord.is_active) === 1 ? "green" : "default"
                     }
-                    style={{
-                      borderRadius: 6,
-                    }}
                   >
                     {Number(viewRecord.is_active) === 1
                       ? "Đang hoạt động"
@@ -1169,96 +1348,41 @@ export default function AdminManager() {
                 </div>
               </div>
 
-              {/* ACCOUNT INFO */}
-
               <Card
-                title={
-                  <span className="section-card-title">
-                    1. Thông tin tài khoản & Hệ thống
-                  </span>
-                }
+                title="Thông tin tài khoản"
                 size="small"
-                bordered={false}
                 className="modal-prayer-card"
                 style={{
                   marginBottom: 16,
                 }}
               >
-                <Descriptions
-                  column={1}
-                  bordered
-                  size="small"
-                  className="custom-modal-desc"
-                >
+                <Descriptions column={1} bordered size="small">
                   <Descriptions.Item label="Username">
-                    <span
-                      style={{
-                        fontFamily: "monospace",
-                        fontWeight: 700,
-                        color: primaryNavy,
-                      }}
-                    >
-                      {viewRecord.username}
-                    </span>
+                    @{viewRecord.username}
                   </Descriptions.Item>
 
                   <Descriptions.Item label="Email">
                     {viewRecord.email || "—"}
                   </Descriptions.Item>
 
-                  <Descriptions.Item label="Số điện thoại">
+                  <Descriptions.Item label="Điện thoại">
                     {viewRecord.phone || "—"}
-                  </Descriptions.Item>
-
-                  <Descriptions.Item label="Loại tài khoản">
-                    <Tag
-                      icon={
-                        viewRecord.account_type === "vip" ? (
-                          <CrownOutlined />
-                        ) : (
-                          <UserOutlined />
-                        )
-                      }
-                      color={
-                        viewRecord.account_type === "vip" ? "gold" : "blue"
-                      }
-                    >
-                      {getAccountTypeLabel(viewRecord.account_type)}
-                    </Tag>
                   </Descriptions.Item>
 
                   <Descriptions.Item label="Giáo xứ">
                     {viewRecord.church_name ||
-                      dataChurch.find(
-                        (church) =>
-                          Number(church.id) === Number(viewRecord.church_id),
-                      )?.name ||
+                      churchMap[viewRecord.church_id]?.name ||
                       "—"}
                   </Descriptions.Item>
                 </Descriptions>
               </Card>
 
-              {/* PERSONAL INFO */}
-
               <Card
-                title={
-                  <span className="section-card-title">
-                    2. Lý lịch & Nhân thân
-                  </span>
-                }
+                title="Lý lịch cá nhân"
                 size="small"
-                bordered={false}
                 className="modal-prayer-card"
-                style={{
-                  marginBottom: 16,
-                }}
               >
-                <Descriptions
-                  column={1}
-                  bordered
-                  size="small"
-                  className="custom-modal-desc"
-                >
+                <Descriptions column={1} bordered size="small">
                   <Descriptions.Item label="Ngày sinh">
                     {viewRecord.birthday
                       ? dayjs(viewRecord.birthday).format("DD/MM/YYYY")
@@ -1269,94 +1393,11 @@ export default function AdminManager() {
                     {viewRecord.hometown || "—"}
                   </Descriptions.Item>
 
-                  <Descriptions.Item label="Địa chỉ cư trú">
+                  <Descriptions.Item label="Địa chỉ">
                     {viewRecord.address || "—"}
                   </Descriptions.Item>
                 </Descriptions>
               </Card>
-
-              {/* PRIEST INFO */}
-
-              {viewRecord.role === "priest" && (
-                <Card
-                  title={
-                    <span className="section-card-title">
-                      3. Thông tin Chức thánh Mục vụ
-                    </span>
-                  }
-                  size="small"
-                  bordered={false}
-                  className="modal-prayer-card"
-                >
-                  <Descriptions
-                    column={1}
-                    bordered
-                    size="small"
-                    className="custom-modal-desc"
-                  >
-                    <Descriptions.Item label="Ngày thụ phong">
-                      <span
-                        style={{
-                          fontWeight: 700,
-                          color: primaryNavy,
-                        }}
-                      >
-                        {viewRecord.ordination_date
-                          ? dayjs(viewRecord.ordination_date).format(
-                              "DD [Tháng] MM, YYYY",
-                            )
-                          : "—"}
-                      </span>
-                    </Descriptions.Item>
-
-                    <Descriptions.Item label="Khẩu hiệu mục vụ">
-                      <span
-                        style={{
-                          fontStyle: "italic",
-                          fontWeight: 700,
-                          color: primaryNavy,
-                        }}
-                      >
-                        "{viewRecord.motto || "Đang cập nhật..."}"
-                      </span>
-                    </Descriptions.Item>
-                  </Descriptions>
-
-                  <Divider
-                    style={{
-                      margin: "12px 0",
-                    }}
-                  />
-
-                  <div
-                    style={{
-                      padding: "0 8px",
-                    }}
-                  >
-                    <Text
-                      strong
-                      style={{
-                        color: primaryNavy,
-                        display: "block",
-                        marginBottom: 6,
-                      }}
-                    >
-                      Tiểu sử chặng đường phục vụ:
-                    </Text>
-
-                    <Paragraph
-                      style={{
-                        color: textDark,
-                        margin: 0,
-                        whiteSpace: "pre-line",
-                        fontSize: 13,
-                      }}
-                    >
-                      {viewRecord.bio || "Chưa có dữ liệu tiểu sử."}
-                    </Paragraph>
-                  </div>
-                </Card>
-              )}
             </div>
           )}
         </Drawer>
@@ -1385,14 +1426,7 @@ export default function AdminManager() {
           destroyOnClose={false}
           extra={
             <Space>
-              <Button
-                onClick={closeDrawer}
-                style={{
-                  borderRadius: 8,
-                }}
-              >
-                Hủy
-              </Button>
+              <Button onClick={closeDrawer}>Hủy</Button>
 
               <Button
                 onClick={handleSubmit}
@@ -1416,16 +1450,9 @@ export default function AdminManager() {
               paddingTop: 8,
             }}
           >
-            {/* ACCOUNT */}
-
             <Card
-              title={
-                <Text strong className="form-field-label">
-                  1. Quyền hạn & Tài khoản
-                </Text>
-              }
+              title={<Text strong>1. Quyền hạn & Tài khoản</Text>}
               size="small"
-              bordered={false}
               className="modal-prayer-card"
               style={{
                 marginBottom: 16,
@@ -1433,133 +1460,62 @@ export default function AdminManager() {
             >
               {/* AVATAR */}
 
-              <Row
-                gutter={16}
-                align="middle"
-                style={{
-                  marginBottom: 16,
-                }}
-              >
-                <Col span={6}>
-                  <Form.Item
-                    label={
-                      <Text strong className="form-field-label">
-                        Ảnh đại diện
-                      </Text>
-                    }
-                  >
-                    <Upload
-                      listType="picture-circle"
-                      fileList={fileList}
-                      beforeUpload={() => false}
-                      onChange={({ fileList }) => setFileList(fileList)}
-                      maxCount={1}
-                    >
-                      {fileList.length < 1 && (
-                        <div>
-                          <PlusOutlined />
+              <Form.Item label="Ảnh đại diện">
+                <Upload
+                  listType="picture-circle"
+                  fileList={fileList}
+                  beforeUpload={() => false}
+                  onChange={({ fileList }) => setFileList(fileList)}
+                  maxCount={1}
+                >
+                  {fileList.length < 1 && (
+                    <div>
+                      <PlusOutlined />
 
-                          <div
-                            style={{
-                              marginTop: 6,
-                              fontSize: 12,
-                            }}
-                          >
-                            Tải lên
-                          </div>
-                        </div>
-                      )}
-                    </Upload>
-                  </Form.Item>
-                </Col>
-
-                <Col span={18}>
-                  <Paragraph
-                    type="secondary"
-                    style={{
-                      fontSize: 12,
-                      margin: 0,
-                    }}
-                  >
-                    Tải lên ảnh chân dung rõ nét. Định dạng cho phép PNG, JPG.
-                  </Paragraph>
-                </Col>
-              </Row>
-
-              {/* EMAIL */}
+                      <div
+                        style={{
+                          marginTop: 6,
+                          fontSize: 12,
+                        }}
+                      >
+                        Tải lên
+                      </div>
+                    </div>
+                  )}
+                </Upload>
+              </Form.Item>
 
               <Form.Item
-                label={
-                  <Text strong className="form-field-label">
-                    Địa chỉ Email *
-                  </Text>
-                }
+                label="Địa chỉ Email *"
                 name="email"
                 rules={[
                   {
                     required: true,
                     type: "email",
-                    message: "Vui lòng điền đúng Email",
+                    message: "Vui lòng nhập đúng Email",
                   },
                 ]}
               >
                 <Input
-                  prefix={
-                    <MailOutlined
-                      style={{
-                        color: "#94a3b8",
-                      }}
-                    />
-                  }
+                  prefix={<MailOutlined />}
                   placeholder="name@example.com"
                   onChange={handleEmailChange}
-                  className="custom-form-input"
                 />
               </Form.Item>
 
-              {/* USERNAME + ROLE */}
-
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item
-                    label={
-                      <Text strong className="form-field-label">
-                        Tên tài khoản (Username)
-                      </Text>
-                    }
-                    name="username"
-                  >
-                    <Input
-                      disabled
-                      prefix={
-                        <UserOutlined
-                          style={{
-                            color: "#94a3b8",
-                          }}
-                        />
-                      }
-                      className="custom-form-input"
-                    />
+                  <Form.Item label="Username" name="username">
+                    <Input disabled prefix={<UserOutlined />} />
                   </Form.Item>
                 </Col>
 
                 <Col span={12}>
-                  <Form.Item
-                    label={
-                      <Text strong className="form-field-label">
-                        Vai trò chức vụ
-                      </Text>
-                    }
-                    name="role"
-                    initialValue="admin"
-                  >
-                    <Select
-                      onChange={(value) => setCurrentRole(value)}
-                      className="custom-form-input"
-                    >
+                  <Form.Item label="Vai trò" name="role">
+                    <Select onChange={(value) => setCurrentRole(value)}>
                       <Option value="admin">Quản trị viên</Option>
 
-                      <Option value="priest">Linh mục Giáo xứ</Option>
+                      <Option value="priest">Linh mục</Option>
 
                       <Option value="liturgy_manager">Quản lý phụng vụ</Option>
 
@@ -1568,39 +1524,23 @@ export default function AdminManager() {
                       </Option>
 
                       <Option value="admin_catechist">
-                        Quản trị viên Giáo lý
+                        Quản trị viên giáo lý
                       </Option>
+
                       <Option value="catechist">Huấn luyện viên</Option>
+
                       <Option value="teacher">Giáo lý viên</Option>
                     </Select>
                   </Form.Item>
                 </Col>
               </Row>
 
-              {/* POSITION */}
-
-              <Form.Item
-                label={
-                  <Text strong className="form-field-label">
-                    Chức danh đảm nhiệm cụ thể
-                  </Text>
-                }
-                name="position"
-              >
-                <Input
-                  placeholder="Ví dụ: Cha chánh xứ, Phó ban hành giáo, Thư ký..."
-                  className="custom-form-input"
-                />
+              <Form.Item label="Chức danh" name="position">
+                <Input placeholder="Cha chánh xứ, thư ký..." />
               </Form.Item>
 
-              {/* CHURCH */}
-
               <Form.Item
-                label={
-                  <Text strong className="form-field-label">
-                    Giáo xứ quản lý *
-                  </Text>
-                }
+                label="Giáo xứ quản lý *"
                 name="church_id"
                 rules={[
                   {
@@ -1614,7 +1554,6 @@ export default function AdminManager() {
                   loading={churchLoading}
                   placeholder="Chọn giáo xứ..."
                   optionFilterProp="label"
-                  className="custom-form-input"
                   options={dataChurch.map((church) => ({
                     value: church.id,
                     label: church.name,
@@ -1622,38 +1561,17 @@ export default function AdminManager() {
                 />
               </Form.Item>
 
-              {/* ACCOUNT TYPE - READ ONLY */}
-
-              <Form.Item
-                label={
-                  <Text strong className="form-field-label">
-                    Loại tài khoản
-                  </Text>
-                }
-                name="account_type"
-                initialValue="member"
-                rules={[
-                  {
-                    required: true,
-                    message: "Vui lòng chọn loại tài khoản",
-                  },
-                ]}
-              >
-                <Select className="custom-form-input">
+              <Form.Item label="Loại tài khoản" name="account_type">
+                <Select>
                   <Option value="member">Member</Option>
+
                   <Option value="vip">VIP</Option>
                 </Select>
               </Form.Item>
 
-              {/* PASSWORD */}
-
               {!editing && (
                 <Form.Item
-                  label={
-                    <Text strong className="form-field-label">
-                      Mật khẩu ban đầu *
-                    </Text>
-                  }
+                  label="Mật khẩu ban đầu *"
                   name="password"
                   rules={[
                     {
@@ -1662,35 +1580,18 @@ export default function AdminManager() {
                     },
                     {
                       min: 6,
-                      message: "Mật khẩu tối thiểu 6 ký tự",
+                      message: "Tối thiểu 6 ký tự",
                     },
                   ]}
                 >
-                  <Input.Password
-                    prefix={
-                      <LockOutlined
-                        style={{
-                          color: "#94a3b8",
-                        }}
-                      />
-                    }
-                    placeholder="Nhập mật khẩu..."
-                    className="custom-form-input"
-                  />
+                  <Input.Password prefix={<LockOutlined />} />
                 </Form.Item>
               )}
             </Card>
 
-            {/* PERSONAL */}
-
             <Card
-              title={
-                <Text strong className="form-field-label">
-                  2. Thông tin lý lịch cá nhân
-                </Text>
-              }
+              title="2. Thông tin lý lịch cá nhân"
               size="small"
-              bordered={false}
               className="modal-prayer-card"
               style={{
                 marginBottom: 16,
@@ -1698,28 +1599,14 @@ export default function AdminManager() {
             >
               <Row gutter={16}>
                 <Col span={8}>
-                  <Form.Item
-                    label={
-                      <Text strong className="form-field-label">
-                        Tên Thánh
-                      </Text>
-                    }
-                    name="saint_name"
-                  >
-                    <Input
-                      placeholder="Giuse..."
-                      className="custom-form-input"
-                    />
+                  <Form.Item label="Tên Thánh" name="saint_name">
+                    <Input placeholder="Giuse..." />
                   </Form.Item>
                 </Col>
 
                 <Col span={16}>
                   <Form.Item
-                    label={
-                      <Text strong className="form-field-label">
-                        Họ và tên *
-                      </Text>
-                    }
+                    label="Họ và tên *"
                     name="full_name"
                     rules={[
                       {
@@ -1728,182 +1615,62 @@ export default function AdminManager() {
                       },
                     ]}
                   >
-                    <Input
-                      prefix={
-                        <IdcardOutlined
-                          style={{
-                            color: "#94a3b8",
-                          }}
-                        />
-                      }
-                      placeholder="Nguyễn Văn A..."
-                      className="custom-form-input"
-                    />
+                    <Input />
                   </Form.Item>
                 </Col>
               </Row>
 
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item
-                    label={
-                      <Text strong className="form-field-label">
-                        Điện thoại di động
-                      </Text>
-                    }
-                    name="phone"
-                  >
-                    <Input
-                      prefix={
-                        <PhoneOutlined
-                          style={{
-                            color: "#94a3b8",
-                          }}
-                        />
-                      }
-                      placeholder="09xxxx..."
-                      className="custom-form-input"
-                    />
+                  <Form.Item label="Điện thoại" name="phone">
+                    <Input />
                   </Form.Item>
                 </Col>
 
                 <Col span={12}>
-                  <Form.Item
-                    label={
-                      <Text strong className="form-field-label">
-                        Ngày sinh
-                      </Text>
-                    }
-                    name="birthday"
-                  >
+                  <Form.Item label="Ngày sinh" name="birthday">
                     <DatePicker
                       style={{
                         width: "100%",
                       }}
                       format="DD/MM/YYYY"
-                      placeholder="Chọn ngày..."
                       disabledDate={disabledFutureDates}
-                      className="custom-form-input"
                     />
                   </Form.Item>
                 </Col>
               </Row>
 
-              <Form.Item
-                label={
-                  <Text strong className="form-field-label">
-                    Quê quán nguyên quán
-                  </Text>
-                }
-                name="hometown"
-              >
-                <Input
-                  prefix={
-                    <HomeOutlined
-                      style={{
-                        color: "#94a3b8",
-                      }}
-                    />
-                  }
-                  placeholder="Địa chỉ quê hương..."
-                  className="custom-form-input"
-                />
+              <Form.Item label="Quê quán" name="hometown">
+                <Input />
               </Form.Item>
 
-              <Form.Item
-                label={
-                  <Text strong className="form-field-label">
-                    Địa chỉ thường trú hiện nay
-                  </Text>
-                }
-                name="address"
-              >
-                <Input
-                  prefix={
-                    <HomeOutlined
-                      style={{
-                        color: "#94a3b8",
-                      }}
-                    />
-                  }
-                  placeholder="Nơi ở hiện nay..."
-                  className="custom-form-input"
-                />
+              <Form.Item label="Địa chỉ" name="address">
+                <Input />
               </Form.Item>
             </Card>
 
-            {/* PRIEST */}
-
             {currentRole === "priest" && (
               <Card
-                title={
-                  <Text strong className="form-field-label">
-                    3. Hồ sơ chức thánh Mục vụ
-                  </Text>
-                }
+                title="3. Hồ sơ chức thánh Mục vụ"
                 size="small"
-                bordered={false}
                 className="modal-prayer-card"
               >
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Form.Item
-                      label={
-                        <Text strong className="form-field-label">
-                          Ngày thụ phong Linh mục
-                        </Text>
-                      }
-                      name="ordination_date"
-                    >
-                      <DatePicker
-                        style={{
-                          width: "100%",
-                        }}
-                        format="DD/MM/YYYY"
-                        placeholder="Chọn ngày..."
-                        disabledDate={disabledOrdinationDates}
-                        className="custom-form-input"
-                      />
-                    </Form.Item>
-                  </Col>
-
-                  <Col span={12}>
-                    <Form.Item
-                      label={
-                        <Text strong className="form-field-label">
-                          Khẩu hiệu Mục vụ
-                        </Text>
-                      }
-                      name="motto"
-                    >
-                      <Input
-                        prefix={
-                          <BookOutlined
-                            style={{
-                              color: "#94a3b8",
-                            }}
-                          />
-                        }
-                        placeholder="Châm ngôn cuộc đời..."
-                        className="custom-form-input"
-                      />
-                    </Form.Item>
-                  </Col>
-                </Row>
-
-                <Form.Item
-                  label={
-                    <Text strong className="form-field-label">
-                      Tóm tắt tiểu sử phục vụ
-                    </Text>
-                  }
-                  name="bio"
-                >
-                  <TextArea
-                    rows={4}
-                    placeholder="Các nơi đã từng mục vụ, công tác..."
-                    className="custom-form-input"
+                <Form.Item label="Ngày thụ phong" name="ordination_date">
+                  <DatePicker
+                    style={{
+                      width: "100%",
+                    }}
+                    format="DD/MM/YYYY"
+                    disabledDate={disabledOrdinationDates}
                   />
+                </Form.Item>
+
+                <Form.Item label="Khẩu hiệu Mục vụ" name="motto">
+                  <Input />
+                </Form.Item>
+
+                <Form.Item label="Tiểu sử phục vụ" name="bio">
+                  <TextArea rows={4} />
                 </Form.Item>
               </Card>
             )}
@@ -1911,7 +1678,7 @@ export default function AdminManager() {
         </Drawer>
 
         {/* ==================================================
-            RESET PASSWORD MODAL
+            RESET PASSWORD
         ================================================== */}
 
         <Modal
@@ -1919,32 +1686,8 @@ export default function AdminManager() {
           onCancel={closeResetPassword}
           onOk={handleResetPassword}
           confirmLoading={loading}
-          title={
-            <div className="modal-custom-title">
-              <KeyOutlined
-                style={{
-                  color: accentGold,
-                }}
-              />
-
-              <span>Đặt Lại Mật Khẩu Truy Cập</span>
-            </div>
-          }
+          title="Đặt Lại Mật Khẩu Truy Cập"
           centered
-          okButtonProps={{
-            style: {
-              backgroundColor: primaryNavy,
-              borderRadius: 8,
-              height: 38,
-              fontWeight: 600,
-            },
-          }}
-          cancelButtonProps={{
-            style: {
-              borderRadius: 8,
-              height: 38,
-            },
-          }}
         >
           <Form
             form={resetForm}
@@ -1954,16 +1697,12 @@ export default function AdminManager() {
             }}
           >
             <Form.Item
-              label={
-                <Text strong className="form-field-label">
-                  Mật khẩu mới *
-                </Text>
-              }
+              label="Mật khẩu mới *"
               name="newPassword"
               rules={[
                 {
                   required: true,
-                  message: "Bắt buộc nhập",
+                  message: "Bắt buộc nhập mật khẩu",
                 },
                 {
                   min: 6,
@@ -1971,30 +1710,17 @@ export default function AdminManager() {
                 },
               ]}
             >
-              <Input.Password
-                prefix={
-                  <LockOutlined
-                    style={{
-                      color: "#94a3b8",
-                    }}
-                  />
-                }
-                className="custom-form-input"
-              />
+              <Input.Password />
             </Form.Item>
 
             <Form.Item
-              label={
-                <Text strong className="form-field-label">
-                  Xác nhận lại mật khẩu *
-                </Text>
-              }
+              label="Xác nhận mật khẩu *"
               name="confirmPassword"
               dependencies={["newPassword"]}
               rules={[
                 {
                   required: true,
-                  message: "Bắt buộc nhập",
+                  message: "Bắt buộc xác nhận",
                 },
 
                 ({ getFieldValue }) => ({
@@ -2003,180 +1729,245 @@ export default function AdminManager() {
                       return Promise.resolve();
                     }
 
-                    return Promise.reject(
-                      new Error("Mật khẩu gõ lại chưa khớp"),
-                    );
+                    return Promise.reject(new Error("Mật khẩu chưa khớp"));
                   },
                 }),
               ]}
             >
-              <Input.Password
-                prefix={
-                  <LockOutlined
-                    style={{
-                      color: "#94a3b8",
-                    }}
-                  />
-                }
-                className="custom-form-input"
-              />
+              <Input.Password />
             </Form.Item>
           </Form>
         </Modal>
 
         {/* ==================================================
-            STYLES
+            STYLE
         ================================================== */}
 
         <style
           dangerouslySetInnerHTML={{
             __html: `
-              @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap');
+
+              @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
 
               .admin-editorial-layout {
                 background: ${softBg};
                 min-height: 100vh;
-                padding: 40px 20px 80px 20px;
+                padding: 40px 20px 80px;
                 font-family: 'Be Vietnam Pro', sans-serif;
-                color: ${textDark};
               }
 
               .admin-editorial-container {
-                max-width: 1100px;
+                max-width: 1200px;
                 margin: 0 auto;
               }
 
-              .admin-header-section {
+              /* ============================
+                 CHURCH TABS
+              ============================ */
+
+              .church-tabs-card {
+                border-radius: 18px !important;
+                margin-bottom: 16px;
+                border: 1px solid rgba(27,54,93,.08) !important;
+                box-shadow: 0 6px 24px rgba(27,54,93,.04);
+              }
+
+              .church-tabs-header {
                 display: flex;
+                align-items: flex-start;
                 justify-content: space-between;
-                align-items: flex-end;
-                margin-bottom: 28px;
-                flex-wrap: wrap;
                 gap: 16px;
+                margin-bottom: 16px;
               }
 
-              .sacred-badge {
-                background: rgba(212, 175, 55, 0.15);
-                border: 1px solid ${accentGold};
-                color: ${primaryNavy};
-                padding: 4px 14px;
-                border-radius: 20px;
-                font-size: 11px;
-                font-weight: 700;
-                letter-spacing: 1px;
-                display: inline-flex;
+              .church-tabs-title {
+                display: flex;
                 align-items: center;
-                gap: 6px;
-                margin-bottom: 10px;
-              }
-
-              .admin-main-title {
-                font-family: 'Playfair Display', Georgia, serif !important;
-                color: ${primaryNavy} !important;
-                margin: 0 !important;
-                font-weight: 700 !important;
-                font-size: clamp(24px, 3.5vw, 32px) !important;
-              }
-
-              .admin-sub-title {
-                color: #64748b;
-                margin: 4px 0 0 0 !important;
-                font-size: 14px;
-              }
-
-              .refresh-btn {
-                border-radius: 10px !important;
-                border-color: rgba(27, 54, 93, 0.2) !important;
-                color: ${primaryNavy} !important;
-                font-weight: 600;
-                height: 42px;
-              }
-
-              .add-admin-btn {
-                background: ${primaryNavy} !important;
-                border-color: ${primaryNavy} !important;
-                height: 42px !important;
-                border-radius: 10px !important;
-                font-weight: 700 !important;
-                box-shadow: 0 4px 14px rgba(27, 54, 93, 0.2);
-              }
-
-              .stat-card {
-                border-radius: 16px !important;
-                background: #ffffff !important;
-                border: 1px solid rgba(27, 54, 93, 0.08) !important;
-                box-shadow: 0 4px 16px rgba(27, 54, 93, 0.03) !important;
-              }
-
-              .stat-icon {
-                margin-right: 8px;
-              }
-
-              .stat-icon.navy {
+                gap: 8px;
                 color: ${primaryNavy};
+                font-size: 13px;
+                font-weight: 800;
+                letter-spacing: .4px;
               }
 
-              .stat-icon.gold {
+              .church-tabs-title svg {
                 color: ${accentGold};
               }
 
-              .stat-icon.green {
-                color: #2e7d32;
+              .church-tabs-desc {
+                display: block;
+                color: #64748b;
+                font-size: 12px;
+                margin-top: 5px;
               }
+
+              .church-tabs .ant-tabs-nav {
+                margin-bottom: 0 !important;
+              }
+
+              .church-tabs .ant-tabs-nav::before {
+                border-bottom: none !important;
+              }
+
+              .church-tabs .ant-tabs-tab {
+                background: #f8fafc;
+                border-radius: 10px 10px 0 0;
+                padding: 10px 14px !important;
+                border: 1px solid rgba(27,54,93,.08);
+              }
+
+              .church-tabs .ant-tabs-tab-active {
+                background: rgba(27,54,93,.05);
+                border-color: rgba(212,175,55,.5);
+              }
+
+              .church-tab-label {
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                font-size: 13px;
+                font-weight: 600;
+                white-space: nowrap;
+              }
+
+              .church-tab-label svg {
+                color: ${primaryNavy};
+              }
+
+              .church-tab-badge {
+                margin-left: 3px;
+              }
+
+              /* ============================
+                 ACTIVE CHURCH
+              ============================ */
+
+              .active-church-banner {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 14px 18px;
+                margin-bottom: 24px;
+
+                background:
+                  linear-gradient(
+                    135deg,
+                    rgba(27,54,93,.98),
+                    #102744
+                  );
+
+                border-radius: 14px;
+
+                box-shadow:
+                  0 8px 22px rgba(27,54,93,.12);
+              }
+
+              .active-church-icon {
+                width: 42px;
+                height: 42px;
+
+                border-radius: 10px;
+
+                background:
+                  rgba(212,175,55,.16);
+
+                border:
+                  1px solid rgba(212,175,55,.5);
+
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                color: ${accentGold};
+                font-size: 19px;
+              }
+
+              .active-church-label {
+                display: block;
+                color: rgba(255,255,255,.55);
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 1px;
+              }
+
+              .active-church-name {
+                margin: 2px 0 0 !important;
+                color: #fff !important;
+                font-family:
+                  'Playfair Display',
+                  serif !important;
+              }
+
+              /* ============================
+                 FILTER
+              ============================ */
 
               .filter-card {
                 border-radius: 16px !important;
-                background: #ffffff !important;
-                border: 1px solid rgba(27, 54, 93, 0.08) !important;
+                border:
+                  1px solid rgba(27,54,93,.08) !important;
                 margin-bottom: 20px;
-                padding: 4px;
               }
 
               .custom-filter-input {
                 border-radius: 10px !important;
-                height: 40px !important;
+                height: 42px !important;
               }
 
               .custom-filter-select .ant-select-selector {
                 border-radius: 10px !important;
-                height: 40px !important;
-                display: flex;
+                min-height: 42px !important;
                 align-items: center;
               }
 
               .clear-filter-btn {
+                height: 42px !important;
                 border-radius: 10px !important;
-                height: 40px !important;
-                color: #64748b !important;
               }
+
+              /* ============================
+                 TABLE
+              ============================ */
 
               .main-table-card {
                 border-radius: 20px !important;
-                background: #ffffff !important;
-                border: 1px solid rgba(212, 175, 55, 0.25) !important;
-                box-shadow: 0 10px 30px rgba(27, 54, 93, 0.05) !important;
-                padding: 8px;
+                border:
+                  1px solid rgba(212,175,55,.25) !important;
+                box-shadow:
+                  0 10px 30px rgba(27,54,93,.05);
+              }
+
+              .table-card-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                flex-wrap: wrap;
               }
 
               .custom-admin-table .ant-table-thead > tr > th {
                 background: ${softBg} !important;
                 color: ${primaryNavy} !important;
                 font-weight: 700 !important;
-                border-bottom: 1px solid rgba(27, 54, 93, 0.1) !important;
               }
 
               .custom-admin-table .ant-table-tbody > tr:hover > td {
-                background: rgba(27, 54, 93, 0.025) !important;
+                background:
+                  rgba(27,54,93,.025) !important;
               }
 
+              /* ============================
+                 PROFILE
+              ============================ */
+
               .profile-header-card {
-                background: #ffffff;
+                background: #fff;
                 padding: 24px;
                 border-radius: 16px;
-                border: 1px solid rgba(212, 175, 55, 0.3);
+                border:
+                  1px solid rgba(212,175,55,.3);
                 text-align: center;
                 margin-bottom: 20px;
-                box-shadow: 0 4px 16px rgba(27, 54, 93, 0.04);
               }
 
               .drawer-title-box {
@@ -2187,96 +1978,61 @@ export default function AdminManager() {
                 color: ${primaryNavy};
               }
 
-              .section-card-title {
-                color: ${primaryNavy};
-                font-weight: 700;
-                font-size: 14px;
-              }
-
-              .modal-custom-title {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                font-family: 'Playfair Display', serif;
-                color: ${primaryNavy};
-                font-size: 18px;
-                font-weight: 700;
-              }
-
               .modal-prayer-card {
                 border-radius: 12px !important;
-                border: 1px solid rgba(27, 54, 93, 0.08) !important;
-                background: ${softBg} !important;
+                border:
+                  1px solid rgba(27,54,93,.08) !important;
               }
 
-              .form-field-label {
-                font-size: 13px;
-                color: ${primaryNavy};
-              }
-
-              .custom-form-input {
-                border-radius: 8px !important;
-              }
-
-              .custom-modal-desc {
-                border-radius: 12px;
-                overflow: hidden;
-              }
-
-              .account-type-fixed {
-                min-height: 40px;
-                display: flex;
-                align-items: center;
-                padding: 0 12px;
-                background: #ffffff;
-                border: 1px solid rgba(27, 54, 93, 0.12);
-                border-radius: 8px;
-              }
+              /* ============================
+                 MOBILE
+              ============================ */
 
               @media (max-width: 768px) {
+
                 .admin-editorial-layout {
                   padding: 24px 12px 60px;
                 }
 
-                .admin-header-section {
+                .church-tabs-header {
+                  flex-direction: column;
+                }
+
+                .church-tabs .ant-tabs-nav-wrap {
+                  overflow-x: auto;
+                }
+
+                .church-tabs .ant-tabs-nav-list {
+                  min-width: max-content;
+                }
+
+                .active-church-banner {
+                  padding: 12px;
+                }
+
+              }
+
+              @media (max-width: 480px) {
+
+                .admin-editorial-layout {
+                  padding: 16px 8px 50px;
+                }
+
+                .church-tab-label {
+                  font-size: 12px;
+                }
+
+                .church-tabs .ant-tabs-tab {
+                  padding: 8px 10px !important;
+                }
+
+                .table-card-header {
                   align-items: flex-start;
                   flex-direction: column;
                 }
 
-                .header-action-group {
-                  width: 100%;
-                  display: flex;
-                }
-
-                .header-action-group .refresh-btn {
-                  flex: 1;
-                }
-
-                .header-action-group .add-admin-btn {
-                  flex: 1;
-                }
               }
 
-              @media (max-width: 480px) {
-                .admin-editorial-layout {
-                  padding: 20px 8px 50px;
-                }
-
-                .header-action-group {
-                  flex-direction: column;
-                  gap: 8px;
-                }
-
-                .header-action-group .refresh-btn,
-                .header-action-group .add-admin-btn {
-                  width: 100%;
-                  margin-right: 0 !important;
-                }
-
-                .profile-header-card {
-                  padding: 18px;
-                }
-              }
             `,
           }}
         />
