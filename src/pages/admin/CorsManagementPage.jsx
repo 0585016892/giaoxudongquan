@@ -82,7 +82,7 @@ const normalizeOrigin = (value) => {
 
 const validateOrigin = (_, value) => {
   if (!value) {
-    return Promise.reject(new Error("Vui lòng nhập domain"));
+    return Promise.reject(new Error("Vui lòng nhập origin"));
   }
 
   const origin = normalizeOrigin(value);
@@ -90,15 +90,51 @@ const validateOrigin = (_, value) => {
   try {
     const url = new URL(origin);
 
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
+    const allowedProtocols = ["http:", "https:", "faith:"];
+
+    if (!allowedProtocols.includes(url.protocol)) {
       return Promise.reject(
-        new Error("Domain phải sử dụng http:// hoặc https://"),
+        new Error("Origin phải sử dụng http://, https:// hoặc faith://"),
       );
     }
 
+    // ==========================================
+    // FAITH://
+    // ==========================================
+    if (url.protocol === "faith:") {
+      if (!url.hostname) {
+        return Promise.reject(
+          new Error("Origin faith:// không hợp lệ. Ví dụ: faith://app"),
+        );
+      }
+
+      if (url.pathname !== "/" && url.pathname !== "") {
+        return Promise.reject(
+          new Error("Origin không được chứa pathname. Ví dụ: faith://app"),
+        );
+      }
+
+      if (url.search || url.hash) {
+        return Promise.reject(
+          new Error("Origin không được chứa query hoặc hash"),
+        );
+      }
+
+      if (url.username || url.password) {
+        return Promise.reject(
+          new Error("Origin không được chứa username hoặc password"),
+        );
+      }
+
+      return Promise.resolve();
+    }
+
+    // ==========================================
+    // HTTP / HTTPS
+    // ==========================================
     if (url.pathname !== "/" && url.pathname !== "") {
       return Promise.reject(
-        new Error("Không nhập pathname. Ví dụ: https://giaolyso.site"),
+        new Error(`Không nhập pathname. Ví dụ: ${url.protocol}//${url.host}`),
       );
     }
 
@@ -117,7 +153,9 @@ const validateOrigin = (_, value) => {
     return Promise.resolve();
   } catch {
     return Promise.reject(
-      new Error("Domain không hợp lệ. Ví dụ: https://giaolyso.site"),
+      new Error(
+        "Origin không hợp lệ. Ví dụ: https://giaolyso.site hoặc faith://app",
+      ),
     );
   }
 };
@@ -758,21 +796,16 @@ const CorsManagementPage = () => {
               type="info"
               showIcon
               icon={<InfoCircleOutlined />}
-              message="Nhập Origin của website"
+              message="Nhập Origin của website hoặc ứng dụng"
               description={
                 <div>
-                  <div>Ví dụ đúng:</div>
-
+                  <div>Ví dụ website:</div>
                   <code>https://giaolyso.site</code>
 
-                  <div
-                    style={{
-                      marginTop: 6,
-                    }}
-                  >
-                    Không nhập:
-                  </div>
+                  <div style={{ marginTop: 8 }}>Ví dụ ứng dụng Electron:</div>
+                  <code>faith://app</code>
 
+                  <div style={{ marginTop: 8 }}>Không nhập pathname:</div>
                   <code>https://giaolyso.site/login</code>
                 </div>
               }
@@ -788,7 +821,7 @@ const CorsManagementPage = () => {
                     validator: validateOrigin,
                   },
                 ]}
-                extra="Sử dụng http:// hoặc https://"
+                extra="Hỗ trợ http://, https:// và faith://"
               >
                 <Input
                   size="large"
