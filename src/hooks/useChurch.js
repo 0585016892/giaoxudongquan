@@ -11,7 +11,18 @@ import {
 } from "../api/churchApi";
 
 export const useChurch = () => {
-  const fetchChurches = useCallback(async (params) => {
+  /**
+   * Lấy danh sách giáo xứ
+   *
+   * params:
+   * {
+   *   page: 1,
+   *   limit: 10,
+   *   search: "",
+   *   type: "GIAO_XU"
+   * }
+   */
+  const fetchChurches = useCallback(async (params = {}) => {
     return await getChurches(params);
   }, []);
 
@@ -35,7 +46,6 @@ export const useChurch = () => {
     return await toggleChurchActive(id);
   }, []);
 
-  // Kích hoạt license FaithEdu
   const activateLicense = useCallback(async (churchId) => {
     return await activateChurchLicense(churchId);
   }, []);

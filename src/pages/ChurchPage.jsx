@@ -110,8 +110,8 @@ function ChangeView({ lat, lng, zoom }) {
   useEffect(() => {
     if (
       lat !== undefined &&
-      lng !== undefined &&
       lat !== null &&
+      lng !== undefined &&
       lng !== null
     ) {
       map.setView([lat, lng], zoom);
@@ -127,13 +127,13 @@ function ChangeView({ lat, lng, zoom }) {
 
 const ChurchPage = () => {
   // ====================================================
-  // ANT DESIGN MESSAGE
+  // MESSAGE
   // ====================================================
 
   const [messageApi, contextHolder] = message.useMessage();
 
   // ====================================================
-  // API
+  // HOOK
   // ====================================================
 
   const {
@@ -145,40 +145,84 @@ const ChurchPage = () => {
     activateLicense,
   } = useChurch();
 
-  const [form] = Form.useForm();
-
-  // ====================================================
-  // STATE
-  // ====================================================
-
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  // CREATE / EDIT
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-
-  // MAP
-  const [marker, setMarker] = useState(defaultCenter);
-  const [mapCenter, setMapCenter] = useState(defaultCenter);
-  const [mapStyle, setMapStyle] = useState("street");
-
-  // IMAGE
-  const [fileList, setFileList] = useState([]);
-  const [imageTab, setImageTab] = useState("file");
-  const [previewImage, setPreviewImage] = useState("");
-
-  // LICENSE
-  const [activatingId, setActivatingId] = useState(null);
-  const [activateModalOpen, setActivateModalOpen] = useState(false);
-  const [activateChurch, setActivateChurch] = useState(null);
-
-  // ====================================================
-  // CURRENT USER
-  // ====================================================
   const { user } = useUser();
 
   const isSystemAdmin = user?.role === "admin";
+
+  const [form] = Form.useForm();
+
+  // ====================================================
+  // TABLE DATA
+  // ====================================================
+
+  const [data, setData] = useState([]);
+
+  const [loading, setLoading] = useState(false);
+
+  // ====================================================
+  // SERVER PAGINATION
+  // ====================================================
+
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+
+  // Keep pagination values as primitives for hook dependencies.
+  const currentPage = pagination.current;
+  const pageSize = pagination.pageSize;
+  const total = pagination.total;
+
+  // ====================================================
+  // SEARCH
+  // ====================================================
+
+  const [search, setSearch] = useState("");
+
+  // ====================================================
+  // FILTER TYPE
+  // ====================================================
+
+  const [type, setType] = useState("");
+
+  // ====================================================
+  // MODAL
+  // ====================================================
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [editingItem, setEditingItem] = useState(null);
+
+  // ====================================================
+  // MAP
+  // ====================================================
+
+  const [marker, setMarker] = useState(defaultCenter);
+
+  const [mapCenter, setMapCenter] = useState(defaultCenter);
+
+  const [mapStyle, setMapStyle] = useState("street");
+
+  // ====================================================
+  // IMAGE
+  // ====================================================
+
+  const [fileList, setFileList] = useState([]);
+
+  const [imageTab, setImageTab] = useState("file");
+
+  const [previewImage, setPreviewImage] = useState("");
+
+  // ====================================================
+  // LICENSE
+  // ====================================================
+
+  const [activatingId, setActivatingId] = useState(null);
+
+  const [activateModalOpen, setActivateModalOpen] = useState(false);
+
+  const [activateChurch, setActivateChurch] = useState(null);
 
   // ====================================================
   // IMAGE URL
@@ -195,7 +239,6 @@ const ChurchPage = () => {
 
     const cleanImagePath = imagePath.trim();
 
-    // URL đầy đủ
     if (
       cleanImagePath.startsWith("http://") ||
       cleanImagePath.startsWith("https://")
@@ -203,10 +246,8 @@ const ChurchPage = () => {
       return cleanImagePath;
     }
 
-    // CRA
     const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
-    // Bỏ /api ở cuối
     const serverBase = apiUrl.replace(/\/api\/?$/, "");
 
     const cleanPath = cleanImagePath.startsWith("/")
@@ -220,31 +261,96 @@ const ChurchPage = () => {
   // LOAD DATA
   // ====================================================
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(
+    async (page = 1, requestedPageSize = pageSize) => {
+      setLoading(true);
 
-    try {
-      const res = await fetchChurches();
+      try {
+        const params = {
+          page,
+          limit: requestedPageSize,
+        };
 
-      const rows = res?.data?.data || res?.data || res || [];
+        // SEARCH
+        if (search?.trim()) {
+          params.search = search.trim();
+        }
 
-      console.log("CHURCH DATA:", rows);
+        // FILTER TYPE
+        if (type) {
+          params.type = type;
+        }
 
-      setData(Array.isArray(rows) ? rows : []);
-    } catch (error) {
-      console.error("Lỗi tải danh sách giáo xứ:", error);
+        const res = await fetchChurches(params);
 
-      messageApi.error(
-        error?.response?.data?.message || "Không gọi được dữ liệu từ Server!",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchChurches, messageApi]);
+        const rows = Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res?.data?.data)
+            ? res.data.data
+            : [];
+
+        const serverPagination = res?.pagination ||
+          res?.data?.pagination || {
+            page,
+            limit: requestedPageSize,
+            total: 0,
+            totalPages: 0,
+          };
+
+        const serverPage = Number(serverPagination.page || page);
+
+        const serverLimit = Number(serverPagination.limit || requestedPageSize);
+
+        const serverTotal = Number(serverPagination.total || 0);
+
+        setData(rows);
+
+        setPagination({
+          current: serverPage,
+          pageSize: serverLimit,
+          total: serverTotal,
+        });
+
+        return {
+          rows,
+          pagination: serverPagination,
+        };
+      } catch (error) {
+        console.error("Lỗi tải danh sách giáo xứ:", error);
+
+        messageApi.error(
+          error?.response?.data?.message || "Không gọi được dữ liệu từ Server!",
+        );
+
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchChurches, messageApi, pageSize, search, type],
+  );
+  // ====================================================
+  // INITIAL LOAD + FILTER
+  // ====================================================
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadData(1, pageSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, type]);
+  // ====================================================
+  // TABLE CHANGE
+  // ====================================================
+
+  const handleTableChange = useCallback(
+    (tablePagination) => {
+      const nextPage = tablePagination.current;
+
+      const nextPageSize = tablePagination.pageSize;
+
+      loadData(nextPage, nextPageSize);
+    },
+    [loadData],
+  );
 
   // ====================================================
   // REVERSE GEOCODE
@@ -273,7 +379,9 @@ const ChurchPage = () => {
 
         form.setFieldsValue({
           address: res.data?.display_name || "",
+
           latitude: lat,
+
           longitude: lng,
 
           district:
@@ -335,6 +443,7 @@ const ChurchPage = () => {
         };
 
         setMapCenter(newPos);
+
         setMarker(newPos);
 
         await reverseGeocode(newPos.lat, newPos.lng);
@@ -357,6 +466,7 @@ const ChurchPage = () => {
     useMapEvents({
       click(e) {
         const lat = e.latlng.lat;
+
         const lng = e.latlng.lng;
 
         setMarker(e.latlng);
@@ -369,7 +479,7 @@ const ChurchPage = () => {
   };
 
   // ====================================================
-  // OPEN CREATE / EDIT MODAL
+  // OPEN CREATE / EDIT
   // ====================================================
 
   const openModal = useCallback(
@@ -377,7 +487,9 @@ const ChurchPage = () => {
       setEditingItem(item);
 
       setFileList([]);
+
       setPreviewImage("");
+
       setImageTab("file");
 
       if (item) {
@@ -394,6 +506,7 @@ const ChurchPage = () => {
         });
 
         setMarker(pos);
+
         setMapCenter(pos);
 
         if (item.image) {
@@ -413,10 +526,12 @@ const ChurchPage = () => {
 
         form.setFieldsValue({
           type: "GIAO_HO",
+
           is_active: true,
         });
 
         setMarker(defaultCenter);
+
         setMapCenter(defaultCenter);
       }
 
@@ -426,22 +541,25 @@ const ChurchPage = () => {
   );
 
   // ====================================================
-  // CLOSE CREATE / EDIT MODAL
+  // CLOSE MODAL
   // ====================================================
 
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
+
     setEditingItem(null);
 
     setFileList([]);
+
     setPreviewImage("");
+
     setImageTab("file");
 
     form.resetFields();
   }, [form]);
 
   // ====================================================
-  // SAVE CHURCH
+  // SAVE
   // ====================================================
 
   const handleSave = useCallback(async () => {
@@ -458,7 +576,6 @@ const ChurchPage = () => {
 
       formData.set("is_active", values.is_active ? "1" : "0");
 
-      // FILE IMAGE
       if (imageTab === "file" && fileList.length > 0) {
         const file = fileList[0]?.originFileObj;
 
@@ -467,7 +584,6 @@ const ChurchPage = () => {
         }
       }
 
-      // IMAGE URL
       if (imageTab === "url" && values.image) {
         formData.set("image", values.image);
       }
@@ -484,7 +600,7 @@ const ChurchPage = () => {
 
       closeModal();
 
-      await loadData();
+      await loadData(currentPage, pageSize);
     } catch (error) {
       console.error("SAVE CHURCH ERROR:", error);
 
@@ -508,10 +624,12 @@ const ChurchPage = () => {
     imageTab,
     loadData,
     messageApi,
+    currentPage,
+    pageSize,
   ]);
 
   // ====================================================
-  // OPEN LICENSE MODAL
+  // ACTIVATE MODAL
   // ====================================================
 
   const openActivateModal = useCallback(
@@ -531,13 +649,14 @@ const ChurchPage = () => {
       }
 
       setActivateChurch(church);
+
       setActivateModalOpen(true);
     },
     [isSystemAdmin, messageApi],
   );
 
   // ====================================================
-  // CLOSE LICENSE MODAL
+  // CLOSE ACTIVATE
   // ====================================================
 
   const closeActivateModal = useCallback(() => {
@@ -546,13 +665,13 @@ const ChurchPage = () => {
     }
 
     setActivateModalOpen(false);
+
     setActivateChurch(null);
   }, [activatingId]);
 
   // ====================================================
   // ACTIVATE LICENSE
   // ====================================================
-
   const handleActivateLicense = useCallback(async () => {
     if (!activateChurch) {
       return;
@@ -571,7 +690,7 @@ const ChurchPage = () => {
         setActivateModalOpen(false);
         setActivateChurch(null);
 
-        await loadData();
+        await loadData(currentPage, pageSize);
       } else {
         messageApi.error(res?.message || "Không thể kích hoạt FaithEdu.");
       }
@@ -579,7 +698,6 @@ const ChurchPage = () => {
       console.error("ACTIVATE LICENSE ERROR:", error);
 
       const status = error?.response?.status;
-
       const code = error?.response?.data?.code;
 
       if (
@@ -593,7 +711,7 @@ const ChurchPage = () => {
       } else if (code === "LICENSE_ALREADY_ACTIVE") {
         messageApi.info("License này đã được kích hoạt.");
 
-        await loadData();
+        await loadData(currentPage, pageSize);
       } else {
         messageApi.error(
           error?.response?.data?.message || "Không thể kích hoạt FaithEdu.",
@@ -602,19 +720,22 @@ const ChurchPage = () => {
     } finally {
       setActivatingId(null);
     }
-  }, [activateChurch, activateLicense, loadData, messageApi]);
+  }, [
+    activateChurch,
+    activateLicense,
+    loadData,
+    messageApi,
+    currentPage,
+    pageSize,
+  ]);
 
   // ====================================================
-  // LICENSE STATUS
+  // LICENSE
   // ====================================================
 
   const renderLicense = useCallback(
     (church) => {
       const status = church.license_status || "trial";
-
-      // ==================================================
-      // ACTIVE
-      // ==================================================
 
       if (status === "active") {
         return (
@@ -642,10 +763,6 @@ const ChurchPage = () => {
           </Space>
         );
       }
-
-      // ==================================================
-      // EXPIRED
-      // ==================================================
 
       if (status === "expired") {
         return (
@@ -682,10 +799,6 @@ const ChurchPage = () => {
           </Space>
         );
       }
-
-      // ==================================================
-      // TRIAL
-      // ==================================================
 
       const days = Number(church.days_remaining ?? 0);
 
@@ -780,9 +893,9 @@ const ChurchPage = () => {
               shape="square"
               size={54}
               style={{
-                backgroundColor: "rgba(212, 175, 55, 0.12)",
+                backgroundColor: "rgba(212,175,55,0.12)",
                 color: primaryNavy,
-                border: "1px solid rgba(212, 175, 55, 0.3)",
+                border: "1px solid rgba(212,175,55,0.3)",
                 borderRadius: 10,
               }}
               icon={
@@ -827,7 +940,11 @@ const ChurchPage = () => {
                 {record.name}
               </Text>
 
-              <div style={{ marginTop: 3 }}>
+              <div
+                style={{
+                  marginTop: 3,
+                }}
+              >
                 <Tag className="gold-code-tag">
                   <GlobalOutlined
                     style={{
@@ -993,7 +1110,11 @@ const ChurchPage = () => {
                   try {
                     await toggleActive(record.id);
 
-                    await loadData();
+                    messageApi.success(
+                      active ? "Đã ẩn cơ sở." : "Đã kích hoạt cơ sở.",
+                    );
+
+                    await loadData(currentPage, pageSize);
                   } catch (error) {
                     messageApi.error(
                       error?.response?.data?.message ||
@@ -1055,7 +1176,24 @@ const ChurchPage = () => {
 
                   messageApi.success("Đã xóa cơ sở.");
 
-                  await loadData();
+                  /**
+                   * Nếu xóa record cuối cùng
+                   * của page hiện tại:
+                   *
+                   * page 4 -> còn page 3
+                   *
+                   * thì quay về page 3.
+                   */
+                  const nextTotal = Math.max(total - 1, 0);
+
+                  const nextTotalPages = Math.max(
+                    Math.ceil(nextTotal / pageSize),
+                    1,
+                  );
+
+                  const nextPage = Math.min(currentPage, nextTotalPages);
+
+                  await loadData(nextPage, pageSize);
                 } catch (error) {
                   messageApi.error(
                     error?.response?.data?.message || "Không thể xóa cơ sở.",
@@ -1088,35 +1226,46 @@ const ChurchPage = () => {
       loadData,
       messageApi,
       openModal,
+      currentPage,
+      pageSize,
+      total,
       removeChurch,
       renderLicense,
       toggleActive,
     ],
   );
+
   // ====================================================
   // SUMMARY
   // ====================================================
 
+  /**
+   * LƯU Ý:
+   *
+   * Vì data hiện tại chỉ chứa 10 record của page,
+   * không thể tính:
+   *
+   * total active/trial/expired
+   *
+   * bằng data.filter() nữa.
+   *
+   * Nếu backend đã trả summary thì dùng summary
+   * từ backend.
+   *
+   * Nếu chưa có thì chỉ hiển thị tổng số toàn bộ.
+   */
+
   const summary = useMemo(() => {
-    const total = data.length;
-
-    const active = data.filter(
-      (item) => item.license_status === "active",
-    ).length;
-
-    const trial = data.filter((item) => item.license_status === "trial").length;
-
-    const expired = data.filter(
-      (item) => item.license_status === "expired",
-    ).length;
-
     return {
       total,
-      active,
-      trial,
-      expired,
+
+      active: data.filter((item) => item.license_status === "active").length,
+
+      trial: data.filter((item) => item.license_status === "trial").length,
+
+      expired: data.filter((item) => item.license_status === "expired").length,
     };
-  }, [data]);
+  }, [data, total]);
 
   // ====================================================
   // RETURN
@@ -1130,7 +1279,9 @@ const ChurchPage = () => {
         theme={{
           token: {
             colorPrimary: primaryNavy,
+
             borderRadius: 12,
+
             colorBgLayout: softBg,
 
             fontFamily:
@@ -1140,6 +1291,7 @@ const ChurchPage = () => {
           components: {
             Table: {
               headerBg: softBg,
+
               headerColor: primaryNavy,
             },
 
@@ -1159,14 +1311,55 @@ const ChurchPage = () => {
               badge="HỆ THỐNG QUẢN LÝ ĐỊA GIỚI MỤC VỤ"
               title="DANH MỤC GIÁO XỨ & GIÁO HỌ"
               description="Thiết lập hệ thống phân cấp các cơ sở nhà thờ, thông tin mục vụ, hình ảnh, tọa độ và trạng thái sử dụng FaithEdu."
-              onRefresh={loadData}
+              onRefresh={() => loadData(currentPage, pageSize)}
               refreshLoading={loading}
               actionText="Thêm Cơ Sở Mới"
               onAction={() => openModal()}
             />
 
             {/* ==================================================
-                LICENSE SUMMARY
+                SEARCH / FILTER
+            ================================================== */}
+
+            <Card bordered={false} className="church-filter-card">
+              <Row gutter={12}>
+                <Col xs={24} md={14} lg={16}>
+                  <Input
+                    allowClear
+                    prefix={
+                      <SearchOutlined
+                        style={{
+                          color: "#94a3b8",
+                        }}
+                      />
+                    }
+                    placeholder="Tìm kiếm tên giáo xứ, mã, địa chỉ, linh mục..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="custom-form-input"
+                  />
+                </Col>
+
+                <Col xs={24} md={10} lg={8}>
+                  <Select
+                    allowClear
+                    value={type || undefined}
+                    onChange={(value) => setType(value || "")}
+                    placeholder="Tất cả loại hình"
+                    style={{
+                      width: "100%",
+                    }}
+                  >
+                    <Option value="GIAO_XU">Giáo xứ</Option>
+
+                    <Option value="GIAO_HO">Giáo họ</Option>
+                  </Select>
+                </Col>
+              </Row>
+            </Card>
+
+            {/* ==================================================
+                SUMMARY
             ================================================== */}
 
             <div className="license-summary-grid">
@@ -1228,7 +1421,7 @@ const ChurchPage = () => {
             </div>
 
             {/* ==================================================
-                SYSTEM ADMIN NOTICE
+                ADMIN NOTICE
             ================================================== */}
 
             {isSystemAdmin && (
@@ -1271,13 +1464,25 @@ const ChurchPage = () => {
                 loading={loading}
                 dataSource={data}
                 columns={columns}
-                rowKey="id"
+                rowKey={(record) => `church-${record.id}`}
+                onChange={handleTableChange}
                 pagination={{
-                  pageSize: 10,
+                  current: currentPage,
+                  pageSize,
+                  total,
+
                   showSizeChanger: true,
+
                   pageSizeOptions: ["10", "20", "50", "100"],
 
-                  showTotal: (total) => `Tổng số: ${total} cơ sở`,
+                  showQuickJumper: true,
+
+                  showTotal: (total, range) =>
+                    `Hiển thị ${range[0]}-${range[1]} / ${total} cơ sở`,
+
+                  locale: {
+                    items_per_page: " / trang",
+                  },
                 }}
                 scroll={{
                   x: 1350,
@@ -1345,8 +1550,6 @@ const ChurchPage = () => {
 
                 <Col xs={24} lg={10}>
                   <div className="form-left-box">
-                    {/* IMAGE */}
-
                     <Divider orientation="left" plain>
                       <span className="section-title">
                         <PictureOutlined />
@@ -1483,8 +1686,6 @@ const ChurchPage = () => {
                       ]}
                     />
 
-                    {/* BASIC */}
-
                     <Divider orientation="left" plain>
                       <span className="section-title">
                         <InfoCircleOutlined />
@@ -1576,8 +1777,6 @@ const ChurchPage = () => {
                         </Form.Item>
                       </Col>
                     </Row>
-
-                    {/* ADDRESS */}
 
                     <Divider orientation="left" plain>
                       <span className="section-title">
@@ -1775,7 +1974,7 @@ const ChurchPage = () => {
           </Modal>
 
           {/* ==================================================
-              ACTIVATE LICENSE MODAL
+              LICENSE MODAL
           ================================================== */}
 
           <Modal
@@ -1975,7 +2174,18 @@ const ChurchPage = () => {
                 }
 
                 /* =========================
-                   LICENSE SUMMARY
+                   FILTER
+                ========================= */
+
+                .church-filter-card {
+                  margin-bottom: 18px;
+                  border-radius: 16px !important;
+                  border: 1px solid rgba(27,54,93,.08) !important;
+                  box-shadow: 0 6px 20px rgba(27,54,93,.04) !important;
+                }
+
+                /* =========================
+                   SUMMARY
                 ========================= */
 
                 .license-summary-grid {
@@ -2029,7 +2239,7 @@ const ChurchPage = () => {
                 }
 
                 /* =========================
-                   SYSTEM ADMIN NOTICE
+                   ADMIN
                 ========================= */
 
                 .system-admin-notice {
@@ -2163,7 +2373,7 @@ const ChurchPage = () => {
                 }
 
                 /* =========================
-                   ACTIVATE MODAL
+                   LICENSE
                 ========================= */
 
                 .activate-modal {
