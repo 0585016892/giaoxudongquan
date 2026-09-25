@@ -36,6 +36,7 @@ import SacramentPage from "../pages/SacramentPage";
 import MediaManager from "../pages/MediaManager";
 import ContactPage from "../pages/ContactPage";
 import StudentsPage from "../pages/StudentsPage";
+import AdminLicensePage from "../pages/AdminLicensePage";
 import DailyVerseAdmin from "../pages/admin/DailyVerseAdmin";
 import CorsManagementPage from "../pages/admin/CorsManagementPage";
 import FaithEduSystemDashboard from "../pages/admin/FaithEduSystemDashboard";
@@ -182,6 +183,7 @@ export default function AppRoutes() {
                 -------------------------------------------------- */}
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/cors" element={<CorsManagementPage />} />
+            <Route path="/admin-license" element={<AdminLicensePage />} />
             {/* --------------------------------------------------
                 Profile
                 -------------------------------------------------- */}

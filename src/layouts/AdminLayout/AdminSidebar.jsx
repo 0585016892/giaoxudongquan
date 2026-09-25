@@ -238,6 +238,11 @@ export default function AdminSidebar({ collapsed }) {
                 label: "Quản trị viên",
               },
               {
+                key: "/admin-license",
+                icon: <UserOutlined />,
+                label: "Đăng kí gói FaithEdu",
+              },
+              {
                 key: "/reports",
                 icon: <BarChartOutlined />,
                 label: "Báo cáo & Thống kê",
