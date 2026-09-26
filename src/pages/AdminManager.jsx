@@ -150,18 +150,31 @@ export default function AdminManager() {
     try {
       setChurchLoading(true);
 
-      const res = await fetchChurches();
+      const allChurches = [];
 
-      setDataChurch(res?.data || res || []);
+      let page = 1;
+      let totalPages = 1;
+
+      do {
+        const res = await fetchChurches({
+          page,
+          limit: 200,
+        });
+
+        allChurches.push(...(res?.data || []));
+
+        totalPages = res?.pagination?.totalPages || 1;
+        page++;
+      } while (page <= totalPages);
+
+      setDataChurch(allChurches);
     } catch (error) {
       console.error("Lỗi tải giáo xứ:", error);
-
       message.error("Không thể tải danh sách giáo xứ!");
     } finally {
       setChurchLoading(false);
     }
   }, [fetchChurches]);
-
   // ======================================================
   // LOAD ADMINS
   // ======================================================
