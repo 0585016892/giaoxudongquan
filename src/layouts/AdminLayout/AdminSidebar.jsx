@@ -81,6 +81,10 @@ export default function AdminSidebar({ collapsed }) {
               label: "Thông tin Giáo xứ",
             },
             {
+              key: "/diocese-management",
+              label: "Thông tin Giáo phận & giáo hạt Việt Nam",
+            },
+            {
               key: "/announcements",
               label: "Thông báo Mục vụ",
             },

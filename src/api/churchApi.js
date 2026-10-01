@@ -91,8 +91,13 @@ export const toggleChurchActive = async (id) => {
 // ACTIVATE LICENSE
 // ======================================================
 
-export const activateChurchLicense = async (churchId) => {
-  const response = await axios.post(`${BASE_URL}/${churchId}/activate-license`);
+export const activateChurchLicense = async (churchId, licenseType) => {
+  const response = await axios.post(
+    `${BASE_URL}/${churchId}/activate-license`,
+    {
+      license_type: licenseType,
+    },
+  );
 
   return response.data;
 };

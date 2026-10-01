@@ -40,7 +40,7 @@ import AdminLicensePage from "../pages/AdminLicensePage";
 import DailyVerseAdmin from "../pages/admin/DailyVerseAdmin";
 import CorsManagementPage from "../pages/admin/CorsManagementPage";
 import FaithEduSystemDashboard from "../pages/admin/FaithEduSystemDashboard";
-
+import DioceseManagement from "../pages/admin/DioceseManagement";
 // ==================== CERTIFICATE ====================
 import CertificatePage from "../components/CertificatePage";
 import VerifyCertificate from "../components/VerifyCertificate";
@@ -184,6 +184,7 @@ export default function AppRoutes() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/cors" element={<CorsManagementPage />} />
             <Route path="/admin-license" element={<AdminLicensePage />} />
+            <Route path="/diocese-management" element={<DioceseManagement />} />
             {/* --------------------------------------------------
                 Profile
                 -------------------------------------------------- */}

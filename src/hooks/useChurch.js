@@ -46,8 +46,8 @@ export const useChurch = () => {
     return await toggleChurchActive(id);
   }, []);
 
-  const activateLicense = useCallback(async (churchId) => {
-    return await activateChurchLicense(churchId);
+  const activateLicense = useCallback(async (churchId, licenseType) => {
+    return await activateChurchLicense(churchId, licenseType);
   }, []);
 
   return {
