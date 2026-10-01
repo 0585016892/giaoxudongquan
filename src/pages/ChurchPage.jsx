@@ -53,6 +53,7 @@ import PageHeroHeader from "../components/common/PageHeroHeader";
 import { useChurch } from "../hooks/useChurch";
 import { useUser } from "../context/UserContext";
 import axios from "../api/axios";
+
 import dayjs from "dayjs";
 
 import {
@@ -68,16 +69,18 @@ import "leaflet/dist/leaflet.css";
 
 const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
+
 const { Option } = Select;
 
 // ======================================================
-// DESIGN SYSTEM
+// DESIGN
 // ======================================================
 
 const primaryNavy = "#1B365D";
 const accentGold = "#D4AF37";
 const textDark = "#1E293B";
 const softBg = "#FAFAFA";
+
 const successGreen = "#2E7D32";
 const dangerRed = "#C62828";
 const warningOrange = "#D97706";
@@ -92,7 +95,7 @@ const defaultCenter = {
 };
 
 // ======================================================
-// LEAFLET MARKER FIX
+// LEAFLET ICON
 // ======================================================
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -107,10 +110,10 @@ L.Icon.Default.mergeOptions({
 });
 
 // ======================================================
-// CHANGE MAP VIEW
+// MAP VIEW
 // ======================================================
 
-function ChangeView({ lat, lng, zoom }) {
+const ChangeView = ({ lat, lng, zoom }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -125,7 +128,7 @@ function ChangeView({ lat, lng, zoom }) {
   }, [lat, lng, zoom, map]);
 
   return null;
-}
+};
 
 // ======================================================
 // LICENSE DAYS
@@ -136,16 +139,35 @@ const getLicenseDaysRemaining = (expiresAt) => {
     return null;
   }
 
-  const now = dayjs();
   const expires = dayjs(expiresAt);
 
   if (!expires.isValid()) {
     return null;
   }
 
-  const diff = expires.startOf("day").diff(now.startOf("day"), "day");
+  const now = dayjs();
 
-  return Math.max(0, diff);
+  return Math.max(0, expires.startOf("day").diff(now.startOf("day"), "day"));
+};
+
+// ======================================================
+// LICENSE NORMALIZE
+// ======================================================
+
+const normalizeLicenseType = (value) => {
+  if (value === "year" || value === "1_year") {
+    return "yearly";
+  }
+
+  if (value === "forever") {
+    return "lifetime";
+  }
+
+  return value || "trial";
+};
+
+const normalizeLicenseStatus = (value) => {
+  return value || "trial";
 };
 
 // ======================================================
@@ -179,16 +201,12 @@ const ChurchPage = () => {
   const [form] = Form.useForm();
 
   // ====================================================
-  // TABLE DATA
+  // TABLE
   // ====================================================
 
   const [data, setData] = useState([]);
 
   const [loading, setLoading] = useState(false);
-
-  // ====================================================
-  // PAGINATION
-  // ====================================================
 
   const [pagination, setPagination] = useState({
     current: 1,
@@ -206,14 +224,10 @@ const ChurchPage = () => {
 
   const [search, setSearch] = useState("");
 
-  // ====================================================
-  // FILTER
-  // ====================================================
-
   const [type, setType] = useState("");
 
   // ====================================================
-  // CREATE / EDIT MODAL
+  // CREATE / EDIT
   // ====================================================
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -244,13 +258,13 @@ const ChurchPage = () => {
   // LICENSE
   // ====================================================
 
-  const [activatingId, setActivatingId] = useState(null);
-
   const [activateModalOpen, setActivateModalOpen] = useState(false);
 
   const [activateChurch, setActivateChurch] = useState(null);
 
   const [selectedLicenseType, setSelectedLicenseType] = useState("yearly");
+
+  const [activatingId, setActivatingId] = useState(null);
 
   // ====================================================
   // IMAGE URL
@@ -342,10 +356,10 @@ const ChurchPage = () => {
           pagination: serverPagination,
         };
       } catch (error) {
-        console.error("Lỗi tải danh sách giáo xứ:", error);
+        console.error("CHURCH LOAD ERROR:", error);
 
         messageApi.error(
-          error?.response?.data?.message || "Không gọi được dữ liệu từ Server!",
+          error?.response?.data?.message || "Không thể tải danh sách giáo xứ.",
         );
 
         return null;
@@ -357,7 +371,7 @@ const ChurchPage = () => {
   );
 
   // ====================================================
-  // INITIAL LOAD / FILTER
+  // INITIAL / FILTER LOAD
   // ====================================================
 
   useEffect(() => {
@@ -367,26 +381,18 @@ const ChurchPage = () => {
   }, [search, type]);
 
   // ====================================================
-  // LICENSE DAYS
-  // ====================================================
-
-  const daysRemaining = getLicenseDaysRemaining(
-    activateChurch?.license_expires_at,
-  );
-
-  // ====================================================
   // TABLE CHANGE
   // ====================================================
 
   const handleTableChange = useCallback(
     (tablePagination) => {
-      const nextPage = tablePagination.current;
+      const nextPage = tablePagination.current || 1;
 
-      const nextPageSize = tablePagination.pageSize;
+      const nextPageSize = tablePagination.pageSize || pageSize;
 
       loadData(nextPage, nextPageSize);
     },
-    [loadData],
+    [loadData, pageSize],
   );
 
   // ====================================================
@@ -415,7 +421,9 @@ const ChurchPage = () => {
 
         form.setFieldsValue({
           address: res.data?.display_name || "",
+
           latitude: lat,
+
           longitude: lng,
 
           district:
@@ -428,7 +436,7 @@ const ChurchPage = () => {
           ward: addr.quarter || addr.suburb || addr.village || addr.town || "",
         });
       } catch (error) {
-        console.error("Reverse geocode error:", error);
+        console.error("REVERSE GEOCODE ERROR:", error);
       }
     },
     [form],
@@ -451,7 +459,7 @@ const ChurchPage = () => {
           "https://nominatim.openstreetmap.org/search",
           {
             params: {
-              q: value,
+              q: value.trim(),
               format: "json",
               limit: 1,
               addressdetails: 1,
@@ -472,8 +480,8 @@ const ChurchPage = () => {
         const result = res.data[0];
 
         const newPos = {
-          lat: parseFloat(result.lat),
-          lng: parseFloat(result.lon),
+          lat: Number(result.lat),
+          lng: Number(result.lon),
         };
 
         setMapCenter(newPos);
@@ -484,9 +492,9 @@ const ChurchPage = () => {
 
         messageApi.success("Đã định vị địa điểm.");
       } catch (error) {
-        console.error("Search location error:", error);
+        console.error("SEARCH LOCATION ERROR:", error);
 
-        messageApi.error("Lỗi trong quá trình tìm kiếm tọa độ!");
+        messageApi.error("Lỗi trong quá trình tìm kiếm tọa độ.");
       }
     },
     [messageApi, reverseGeocode],
@@ -503,7 +511,12 @@ const ChurchPage = () => {
 
         const lng = e.latlng.lng;
 
-        setMarker(e.latlng);
+        const position = {
+          lat,
+          lng,
+        };
+
+        setMarker(position);
 
         reverseGeocode(lat, lng);
       },
@@ -560,6 +573,7 @@ const ChurchPage = () => {
 
         form.setFieldsValue({
           type: "GIAO_HO",
+
           is_active: true,
         });
 
@@ -601,9 +615,9 @@ const ChurchPage = () => {
 
       const formData = new FormData();
 
-      Object.keys(values).forEach((key) => {
-        if (values[key] !== undefined && values[key] !== null) {
-          formData.append(key, values[key]);
+      Object.entries(values).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value);
         }
       });
 
@@ -624,11 +638,11 @@ const ChurchPage = () => {
       if (editingItem) {
         await editChurch(editingItem.id, formData);
 
-        messageApi.success("Cập nhật hồ sơ cơ sở thành công!");
+        messageApi.success("Cập nhật hồ sơ cơ sở thành công.");
       } else {
         await addChurch(formData);
 
-        messageApi.success("Thêm cơ sở mới thành công!");
+        messageApi.success("Thêm cơ sở mới thành công.");
       }
 
       closeModal();
@@ -638,18 +652,19 @@ const ChurchPage = () => {
       console.error("SAVE CHURCH ERROR:", error);
 
       if (error?.errorFields) {
-        messageApi.warning(
-          "Vui lòng kiểm tra lại các trường thông tin bắt buộc!",
-        );
-      } else {
-        messageApi.error(
-          error?.response?.data?.message || "Không thể lưu hồ sơ cơ sở.",
-        );
+        messageApi.warning("Vui lòng kiểm tra lại các trường bắt buộc.");
+
+        return;
       }
+
+      messageApi.error(
+        error?.response?.data?.message || "Không thể lưu hồ sơ cơ sở.",
+      );
     }
   }, [
     addChurch,
     closeModal,
+    currentPage,
     editChurch,
     editingItem,
     fileList,
@@ -657,12 +672,90 @@ const ChurchPage = () => {
     imageTab,
     loadData,
     messageApi,
-    currentPage,
     pageSize,
   ]);
 
   // ====================================================
-  // OPEN LICENSE MODAL
+  // LICENSE CURRENT STATE
+  // ====================================================
+
+  const currentLicenseType = normalizeLicenseType(activateChurch?.license_type);
+
+  const currentLicenseStatus = normalizeLicenseStatus(
+    activateChurch?.license_status,
+  );
+
+  const isCurrentLifetime = currentLicenseType === "lifetime";
+
+  const isCurrentYearly = currentLicenseType === "yearly";
+
+  const isCurrentYearlyActive =
+    isCurrentYearly && currentLicenseStatus === "active";
+
+  const isCurrentYearlyExpired =
+    isCurrentYearly && currentLicenseStatus === "expired";
+
+  const isCurrentTrial =
+    currentLicenseType === "trial" || currentLicenseStatus === "trial";
+
+  // ====================================================
+  // SELECTED
+  // ====================================================
+
+  const isSelectedYearly = selectedLicenseType === "yearly";
+
+  const isSelectedLifetime = selectedLicenseType === "lifetime";
+
+  // ====================================================
+  // LICENSE OPERATION
+  // ====================================================
+
+  const getLicenseOperation = useCallback(() => {
+    if (!activateChurch) {
+      return null;
+    }
+
+    if (isCurrentLifetime) {
+      return "none";
+    }
+
+    if (isCurrentYearlyActive && isSelectedYearly) {
+      return "renew_yearly";
+    }
+
+    if (isCurrentYearlyActive && isSelectedLifetime) {
+      return "upgrade_yearly_to_lifetime";
+    }
+
+    if (isCurrentYearlyExpired && isSelectedYearly) {
+      return "reactivate_yearly";
+    }
+
+    if (isCurrentYearlyExpired && isSelectedLifetime) {
+      return "expired_yearly_to_lifetime";
+    }
+
+    if (isCurrentTrial && isSelectedYearly) {
+      return "activate_yearly_from_trial";
+    }
+
+    if (isCurrentTrial && isSelectedLifetime) {
+      return "activate_lifetime_from_trial";
+    }
+
+    return "activation";
+  }, [
+    activateChurch,
+    isCurrentLifetime,
+    isCurrentTrial,
+    isCurrentYearlyActive,
+    isCurrentYearlyExpired,
+    isSelectedLifetime,
+    isSelectedYearly,
+  ]);
+
+  // ====================================================
+  // OPEN LICENSE
   // ====================================================
 
   const openActivateModal = useCallback(
@@ -676,39 +769,39 @@ const ChurchPage = () => {
       }
 
       if (!church?.id) {
-        messageApi.error("Không xác định được cơ sở.");
+        messageApi.error("Không xác định được giáo xứ.");
 
         return;
       }
 
       setActivateChurch(church);
 
-      // ------------------------------------------------
-      // XÁC ĐỊNH GÓI MẶC ĐỊNH
-      //
-      // TRIAL
-      //   -> yearly
-      //
-      // EXPIRED
-      //   -> yearly
-      //
-      // ACTIVE YEARLY
-      //   -> lifetime
-      //
-      // ACTIVE LIFETIME
-      //   -> lifetime
-      // ------------------------------------------------
+      const type = normalizeLicenseType(church.license_type);
 
-      if (
-        church.license_status === "active" &&
-        church.license_type === "yearly"
-      ) {
+      const status = normalizeLicenseStatus(church.license_status);
+
+      /*
+       * LIFETIME
+       * Không còn lựa chọn.
+       */
+      if (type === "lifetime") {
         setSelectedLicenseType("lifetime");
-      } else if (
-        church.license_status === "active" &&
-        church.license_type === "lifetime"
-      ) {
-        setSelectedLicenseType("lifetime");
+      } else if (type === "yearly") {
+
+      /*
+       * YEARLY
+       * Cho phép:
+       * - yearly -> yearly
+       * - yearly -> lifetime
+       */
+        setSelectedLicenseType("yearly");
+      } else if (type === "trial" || status === "trial") {
+
+      /*
+       * TRIAL
+       * Mặc định yearly.
+       */
+        setSelectedLicenseType("yearly");
       } else {
         setSelectedLicenseType("yearly");
       }
@@ -719,7 +812,7 @@ const ChurchPage = () => {
   );
 
   // ====================================================
-  // CLOSE LICENSE MODAL
+  // CLOSE LICENSE
   // ====================================================
 
   const closeActivateModal = useCallback(() => {
@@ -735,52 +828,22 @@ const ChurchPage = () => {
   }, [activatingId]);
 
   // ====================================================
-  // CURRENT LICENSE STATE
-  // ====================================================
-
-  const isCurrentYearly =
-    activateChurch?.license_status === "active" &&
-    activateChurch?.license_type === "yearly";
-
-  const isCurrentLifetime =
-    activateChurch?.license_status === "active" &&
-    activateChurch?.license_type === "lifetime";
-
-  const isUpgradeToLifetime =
-    isCurrentYearly && selectedLicenseType === "lifetime";
-
-  // ====================================================
   // LICENSE ACTION DISABLED
   // ====================================================
 
   const licenseActionDisabled =
+    !activateChurch ||
     !selectedLicenseType ||
     isCurrentLifetime ||
-    (isCurrentYearly && selectedLicenseType === "yearly");
+    activatingId !== null;
 
   // ====================================================
-  // CURRENT LICENSE NAME
+  // LICENSE DAYS
   // ====================================================
 
-  const getCurrentLicenseName = useCallback(() => {
-    if (!activateChurch) {
-      return "TRIAL";
-    }
-
-    if (activateChurch.license_status === "expired") {
-      return "ĐÃ HẾT HẠN";
-    }
-
-    if (activateChurch.license_type === "lifetime") {
-      return "VĨNH VIỄN";
-    }
-
-    if (activateChurch.license_type === "yearly") {
-      return "GÓI 1 NĂM";
-    }
-
-    return "TRIAL";
-  }, [activateChurch]);
+  const daysRemaining = getLicenseDaysRemaining(
+    activateChurch?.license_expires_at,
+  );
 
   // ====================================================
   // FORMAT DATE
@@ -810,34 +873,24 @@ const ChurchPage = () => {
 
   const handleActivateLicense = useCallback(async () => {
     if (!activateChurch) {
-      messageApi.warning("Không xác định được giáo xứ cần kích hoạt.");
+      messageApi.warning("Không xác định được giáo xứ cần quản lý license.");
 
       return;
     }
 
     if (!isSystemAdmin) {
       messageApi.error(
-        "Chỉ quản trị hệ thống mới có quyền kích hoạt FaithEdu.",
+        "Chỉ quản trị hệ thống mới có quyền quản lý license FaithEdu.",
       );
 
       return;
     }
 
-    if (!selectedLicenseType) {
-      messageApi.warning("Vui lòng chọn gói FaithEdu.");
-
-      return;
-    }
-
     if (!["yearly", "lifetime"].includes(selectedLicenseType)) {
-      messageApi.error("Gói FaithEdu không hợp lệ.");
+      messageApi.warning("Gói FaithEdu không hợp lệ.");
 
       return;
     }
-
-    // ------------------------------------------------
-    // KHÔNG CHO KÍCH HOẠT LẠI LIFETIME
-    // ------------------------------------------------
 
     if (isCurrentLifetime) {
       messageApi.info("Cơ sở này đã sử dụng gói FaithEdu vĩnh viễn.");
@@ -845,82 +898,82 @@ const ChurchPage = () => {
       return;
     }
 
-    // ------------------------------------------------
-    // KHÔNG CHO KÍCH HOẠT LẠI YEARLY
-    // ------------------------------------------------
-
-    if (isCurrentYearly && selectedLicenseType === "yearly") {
-      messageApi.info("Cơ sở này đang sử dụng gói 1 năm.");
-
-      return;
-    }
-
     const churchId = Number(activateChurch.id);
 
-    if (!churchId) {
+    if (!Number.isInteger(churchId) || churchId <= 0) {
       messageApi.error("ID giáo xứ không hợp lệ.");
 
       return;
     }
 
+    const expectedOperation = getLicenseOperation();
+
+    console.group("FAITHEDU LICENSE ACTION");
+
+    console.log("Church ID:", churchId);
+
+    console.log("Current Type:", currentLicenseType);
+
+    console.log("Current Status:", currentLicenseStatus);
+
+    console.log("Selected Type:", selectedLicenseType);
+
+    console.log("Expected Operation:", expectedOperation);
+
+    console.groupEnd();
+
     try {
       setActivatingId(churchId);
 
-      console.log("==========================================");
-
-      console.log("ACTIVATE LICENSE FROM CHURCH PAGE");
-
-      console.log("Church ID:", churchId);
-
-      console.log("Current Status:", activateChurch.license_status);
-
-      console.log("Current Type:", activateChurch.license_type);
-
-      console.log("New License Type:", selectedLicenseType);
-
-      console.log("Is Upgrade:", isUpgradeToLifetime);
-
-      console.log("==========================================");
-
       const res = await activateLicense(churchId, selectedLicenseType);
 
-      console.log("ACTIVATE LICENSE RESPONSE:", res);
+      console.log("FAITHEDU LICENSE RESPONSE:", res);
 
-      if (res?.success) {
-        let successMessage = "Kích hoạt FaithEdu thành công.";
-
-        if (isUpgradeToLifetime) {
-          successMessage = "Nâng cấp FaithEdu lên gói vĩnh viễn thành công.";
-        } else if (selectedLicenseType === "yearly") {
-          successMessage = "Kích hoạt FaithEdu gói 1 năm thành công.";
-        } else if (selectedLicenseType === "lifetime") {
-          successMessage = "Kích hoạt FaithEdu gói vĩnh viễn thành công.";
-        }
-
-        messageApi.success(res?.message || successMessage);
-
-        setActivateModalOpen(false);
-
-        setActivateChurch(null);
-
-        setSelectedLicenseType("yearly");
-
-        await loadData(currentPage, pageSize);
+      if (!res?.success) {
+        messageApi.error(res?.message || "Không thể quản lý license FaithEdu.");
 
         return;
       }
 
-      messageApi.error(res?.message || "Không thể kích hoạt FaithEdu.");
+      const operation = res.operation || expectedOperation;
+
+      const operationMessages = {
+        renew_yearly: "Gia hạn FaithEdu gói 1 năm thành công.",
+
+        reactivate_yearly: "Kích hoạt lại FaithEdu gói 1 năm thành công.",
+
+        upgrade_yearly_to_lifetime:
+          "Nâng cấp FaithEdu lên gói vĩnh viễn thành công.",
+
+        expired_yearly_to_lifetime:
+          "Kích hoạt FaithEdu gói vĩnh viễn thành công.",
+
+        activate_yearly_from_trial:
+          "Kích hoạt FaithEdu gói 1 năm từ bản dùng thử thành công.",
+
+        activate_lifetime_from_trial:
+          "Kích hoạt FaithEdu gói vĩnh viễn từ bản dùng thử thành công.",
+
+        activation: "Kích hoạt FaithEdu thành công.",
+      };
+
+      messageApi.success(
+        res.message ||
+          operationMessages[operation] ||
+          "Quản lý license FaithEdu thành công.",
+      );
+
+      setActivateModalOpen(false);
+
+      setActivateChurch(null);
+
+      setSelectedLicenseType("yearly");
+
+      await loadData(currentPage, pageSize);
     } catch (error) {
-      console.error("==========================================");
+      console.error("FAITHEDU LICENSE ACTION ERROR:", error);
 
-      console.error("ACTIVATE LICENSE ERROR");
-
-      console.error("Error:", error);
-
-      console.error("Response:", error?.response?.data);
-
-      console.error("==========================================");
+      console.error("RESPONSE:", error?.response?.data);
 
       const status = error?.response?.status;
 
@@ -928,25 +981,52 @@ const ChurchPage = () => {
 
       const serverMessage = error?.response?.data?.message;
 
-      // ------------------------------------------------
-      // 403
-      // ------------------------------------------------
+      if (status === 401 || code === "UNAUTHORIZED") {
+        messageApi.error(serverMessage || "Phiên đăng nhập đã hết hạn.");
 
-      if (
-        status === 403 ||
-        code === "SYSTEM_ADMIN_ONLY" ||
-        code === "LICENSE_ACTIVATION_FORBIDDEN"
-      ) {
+        return;
+      }
+
+      if (status === 403 || code === "LICENSE_ACTIVATION_FORBIDDEN") {
         messageApi.error(
-          "Chỉ quản trị hệ thống mới có quyền kích hoạt FaithEdu.",
+          serverMessage ||
+            "Chỉ quản trị hệ thống mới có quyền quản lý license FaithEdu.",
         );
 
         return;
       }
 
-      // ------------------------------------------------
-      // ALREADY LIFETIME
-      // ------------------------------------------------
+      if (code === "CHURCH_NOT_FOUND") {
+        messageApi.error(serverMessage || "Không tìm thấy giáo xứ.");
+
+        setActivateModalOpen(false);
+
+        setActivateChurch(null);
+
+        await loadData(currentPage, pageSize);
+
+        return;
+      }
+
+      if (code === "INVALID_CHURCH_ID") {
+        messageApi.error(serverMessage || "ID giáo xứ không hợp lệ.");
+
+        return;
+      }
+
+      if (code === "INVALID_LICENSE_TYPE") {
+        messageApi.error(serverMessage || "Gói FaithEdu không hợp lệ.");
+
+        return;
+      }
+
+      if (code === "LICENSE_TYPE_MISSING") {
+        messageApi.error(
+          serverMessage || "License của giáo xứ chưa xác định được loại gói.",
+        );
+
+        return;
+      }
 
       if (code === "LICENSE_ALREADY_LIFETIME") {
         messageApi.info(
@@ -962,46 +1042,21 @@ const ChurchPage = () => {
         return;
       }
 
-      // ------------------------------------------------
-      // ALREADY ACTIVE
-      // ------------------------------------------------
-
-      if (code === "LICENSE_ALREADY_ACTIVE") {
-        messageApi.info(
-          serverMessage || "License hiện tại vẫn đang hoạt động.",
-        );
-
-        await loadData(currentPage, pageSize);
-
-        return;
-      }
-
-      // ------------------------------------------------
-      // INVALID TYPE
-      // ------------------------------------------------
-
-      if (code === "INVALID_LICENSE_TYPE") {
-        messageApi.error("Gói FaithEdu không hợp lệ. Vui lòng chọn lại.");
-
-        return;
-      }
-
-      // ------------------------------------------------
-      // DEFAULT
-      // ------------------------------------------------
-
-      messageApi.error(serverMessage || "Không thể kích hoạt FaithEdu.");
+      messageApi.error(
+        serverMessage || "Lỗi server khi quản lý license FaithEdu.",
+      );
     } finally {
       setActivatingId(null);
     }
   }, [
     activateChurch,
     activateLicense,
+    currentLicenseStatus,
+    currentLicenseType,
     currentPage,
+    getLicenseOperation,
     isCurrentLifetime,
-    isCurrentYearly,
     isSystemAdmin,
-    isUpgradeToLifetime,
     loadData,
     messageApi,
     pageSize,
@@ -1009,25 +1064,25 @@ const ChurchPage = () => {
   ]);
 
   // ====================================================
-  // RENDER LICENSE
+  // LICENSE RENDER
   // ====================================================
 
   const renderLicense = useCallback(
     (church) => {
-      const status = church.license_status || "trial";
+      const status = normalizeLicenseStatus(church?.license_status);
 
-      const licenseType = church.license_type || "trial";
+      const type = normalizeLicenseType(church?.license_type);
 
-      // ------------------------------------------------
-      // ACTIVE - LIFETIME
-      // ------------------------------------------------
+      // ----------------------------------------------
+      // LIFETIME
+      // ----------------------------------------------
 
-      if (status === "active" && licenseType === "lifetime") {
+      if (type === "lifetime") {
         return (
-          <Space direction="vertical" size={2} align="center">
+          <Space direction="vertical" size={3} align="center">
             <Tag
               icon={<CheckCircleFilled />}
-              color="success"
+              color="gold"
               style={{
                 borderRadius: 20,
                 fontWeight: 700,
@@ -1054,12 +1109,16 @@ const ChurchPage = () => {
         );
       }
 
-      // ------------------------------------------------
-      // ACTIVE - YEARLY
-      // ------------------------------------------------
+      // ----------------------------------------------
+      // YEARLY ACTIVE
+      // ----------------------------------------------
 
-      if (status === "active" && licenseType === "yearly") {
-        const days = Number(church.days_remaining ?? 0);
+      if (type === "yearly" && status === "active") {
+        const days = Number(
+          church.days_remaining ??
+            getLicenseDaysRemaining(church.license_expires_at) ??
+            0,
+        );
 
         let color = "success";
 
@@ -1070,7 +1129,7 @@ const ChurchPage = () => {
         }
 
         return (
-          <Space direction="vertical" size={2} align="center">
+          <Space direction="vertical" size={3} align="center">
             <Tag
               icon={<CheckCircleFilled />}
               color={color}
@@ -1098,26 +1157,29 @@ const ChurchPage = () => {
               Còn {days} ngày
             </Text>
 
-            <Button
-              type="link"
-              size="small"
-              onClick={() => openActivateModal(church)}
-              style={{
-                padding: 0,
-                height: "auto",
-                fontSize: 11,
-                color: primaryNavy,
-              }}
-            >
-              Xem / Nâng cấp
-            </Button>
+            {isSystemAdmin && (
+              <Button
+                type="link"
+                size="small"
+                icon={<SafetyCertificateOutlined />}
+                onClick={() => openActivateModal(church)}
+                style={{
+                  padding: 0,
+                  height: "auto",
+                  fontSize: 11,
+                  color: primaryNavy,
+                }}
+              >
+                Gia hạn / Nâng cấp
+              </Button>
+            )}
           </Space>
         );
       }
 
-      // ------------------------------------------------
+      // ----------------------------------------------
       // EXPIRED
-      // ------------------------------------------------
+      // ----------------------------------------------
 
       if (status === "expired") {
         return (
@@ -1148,18 +1210,22 @@ const ChurchPage = () => {
                   fontSize: 11,
                 }}
               >
-                Gia hạn
+                Mua lại
               </Button>
             )}
           </Space>
         );
       }
 
-      // ------------------------------------------------
+      // ----------------------------------------------
       // TRIAL
-      // ------------------------------------------------
+      // ----------------------------------------------
 
-      const days = Number(church.days_remaining ?? 0);
+      const days = Number(
+        church.days_remaining ??
+          getLicenseDaysRemaining(church.license_expires_at) ??
+          0,
+      );
 
       let color = "processing";
 
@@ -1222,10 +1288,6 @@ const ChurchPage = () => {
 
   const columns = useMemo(
     () => [
-      // ------------------------------------------------
-      // IMAGE
-      // ------------------------------------------------
-
       {
         title: "Hình ảnh",
         key: "image",
@@ -1272,10 +1334,6 @@ const ChurchPage = () => {
           );
         },
       },
-
-      // ------------------------------------------------
-      // CHURCH INFO
-      // ------------------------------------------------
 
       {
         title: "Cơ sở Giáo phận",
@@ -1326,10 +1384,6 @@ const ChurchPage = () => {
           </Space>
         ),
       },
-
-      // ------------------------------------------------
-      // MANAGEMENT
-      // ------------------------------------------------
 
       {
         title: "Quản lý & Liên hệ",
@@ -1411,10 +1465,6 @@ const ChurchPage = () => {
         ),
       },
 
-      // ------------------------------------------------
-      // ADDRESS
-      // ------------------------------------------------
-
       {
         title: "Địa chỉ mục vụ",
         dataIndex: "address",
@@ -1437,10 +1487,6 @@ const ChurchPage = () => {
         ),
       },
 
-      // ------------------------------------------------
-      // PARISHIONERS
-      // ------------------------------------------------
-
       {
         title: "Giáo dân",
         dataIndex: "total_parishioners",
@@ -1462,22 +1508,14 @@ const ChurchPage = () => {
         ),
       },
 
-      // ------------------------------------------------
-      // LICENSE
-      // ------------------------------------------------
-
       {
         title: "FaithEdu",
         key: "license",
-        width: 150,
+        width: 160,
         align: "center",
 
         render: (_, record) => renderLicense(record),
       },
-
-      // ------------------------------------------------
-      // ACTIVE
-      // ------------------------------------------------
 
       {
         title: "Trạng thái",
@@ -1524,10 +1562,6 @@ const ChurchPage = () => {
           );
         },
       },
-
-      // ------------------------------------------------
-      // ACTION
-      // ------------------------------------------------
 
       {
         title: "Thao tác",
@@ -1605,16 +1639,16 @@ const ChurchPage = () => {
       },
     ],
     [
+      currentPage,
       getImageUrl,
       loadData,
       messageApi,
       openModal,
-      currentPage,
       pageSize,
-      total,
       removeChurch,
       renderLicense,
       toggleActive,
+      total,
     ],
   );
 
@@ -1626,16 +1660,48 @@ const ChurchPage = () => {
     return {
       total,
 
-      active: data.filter((item) => item.license_status === "active").length,
+      active: data.filter(
+        (item) => item.is_active === 1 || item.is_active === true,
+      ).length,
 
-      trial: data.filter((item) => item.license_status === "trial").length,
+      trial: data.filter(
+        (item) => normalizeLicenseStatus(item.license_status) === "trial",
+      ).length,
 
-      expired: data.filter((item) => item.license_status === "expired").length,
+      expired: data.filter(
+        (item) => normalizeLicenseStatus(item.license_status) === "expired",
+      ).length,
     };
   }, [data, total]);
 
   // ====================================================
-  // RETURN
+  // LICENSE UI
+  // ====================================================
+
+  const licenseCurrentLabel = isCurrentLifetime
+    ? "VĨNH VIỄN"
+    : isCurrentYearlyExpired
+      ? "1 NĂM - ĐÃ HẾT HẠN"
+      : isCurrentYearlyActive
+        ? "1 NĂM - ĐANG HOẠT ĐỘNG"
+        : "TRIAL";
+
+  const selectedLabel = isSelectedLifetime ? "VĨNH VIỄN" : "1 NĂM";
+
+  const isUpgradeToLifetime = isCurrentYearlyActive && isSelectedLifetime;
+
+  const isRenewYearly = isCurrentYearlyActive && isSelectedYearly;
+
+  const isReactivateYearly = isCurrentYearlyExpired && isSelectedYearly;
+
+  const isExpiredToLifetime = isCurrentYearlyExpired && isSelectedLifetime;
+
+  const isTrialToYearly = isCurrentTrial && isSelectedYearly;
+
+  const isTrialToLifetime = isCurrentTrial && isSelectedLifetime;
+
+  // ====================================================
+  // RENDER
   // ====================================================
 
   return (
@@ -1658,6 +1724,7 @@ const ChurchPage = () => {
           components: {
             Table: {
               headerBg: softBg,
+
               headerColor: primaryNavy,
             },
 
@@ -1684,7 +1751,7 @@ const ChurchPage = () => {
             />
 
             {/* ==================================================
-                SEARCH
+                FILTER
             ================================================== */}
 
             <Card bordered={false} className="church-filter-card">
@@ -1845,8 +1912,8 @@ const ChurchPage = () => {
 
                   showQuickJumper: true,
 
-                  showTotal: (total, range) =>
-                    `Hiển thị ${range[0]}-${range[1]} / ${total} cơ sở`,
+                  showTotal: (totalValue, range) =>
+                    `Hiển thị ${range[0]}-${range[1]} / ${totalValue} cơ sở`,
 
                   locale: {
                     items_per_page: " / trang",
@@ -1912,9 +1979,7 @@ const ChurchPage = () => {
               }}
             >
               <Row gutter={24}>
-                {/* ==================================================
-                    LEFT
-                ================================================== */}
+                {/* LEFT */}
 
                 <Col xs={24} lg={10}>
                   <div className="form-left-box">
@@ -2220,9 +2285,7 @@ const ChurchPage = () => {
                   </div>
                 </Col>
 
-                {/* ==================================================
-                    RIGHT MAP
-                ================================================== */}
+                {/* RIGHT MAP */}
 
                 <Col xs={24} lg={14}>
                   <div className="map-right-box">
@@ -2350,7 +2413,7 @@ const ChurchPage = () => {
             onCancel={closeActivateModal}
             footer={null}
             centered
-            width={600}
+            width={620}
             destroyOnClose
             closable={!activatingId}
           >
@@ -2375,7 +2438,13 @@ const ChurchPage = () => {
                   ? "Chi tiết bản quyền FaithEdu"
                   : isUpgradeToLifetime
                     ? "Nâng cấp FaithEdu"
-                    : "Kích hoạt FaithEdu"}
+                    : isRenewYearly
+                      ? "Gia hạn FaithEdu"
+                      : isReactivateYearly
+                        ? "Kích hoạt lại FaithEdu"
+                        : isExpiredToLifetime
+                          ? "Mua gói vĩnh viễn"
+                          : "Kích hoạt FaithEdu"}
               </Title>
 
               <Paragraph
@@ -2390,7 +2459,13 @@ const ChurchPage = () => {
                   ? "Cơ sở này đang sử dụng gói FaithEdu vĩnh viễn."
                   : isUpgradeToLifetime
                     ? "Nâng cấp từ gói 1 năm lên gói FaithEdu vĩnh viễn."
-                    : "Chọn gói bản quyền FaithEdu muốn sử dụng cho cơ sở này."}
+                    : isRenewYearly
+                      ? "Gia hạn thêm 12 tháng cho license FaithEdu hiện tại."
+                      : isReactivateYearly
+                        ? "Kích hoạt lại license FaithEdu đã hết hạn."
+                        : isExpiredToLifetime
+                          ? "Chuyển cơ sở sang gói FaithEdu vĩnh viễn."
+                          : "Chọn gói bản quyền FaithEdu muốn sử dụng cho cơ sở này."}
               </Paragraph>
 
               {/* CHURCH */}
@@ -2433,80 +2508,56 @@ const ChurchPage = () => {
               {/* CURRENT STATUS */}
 
               <div className="activate-current-status">
-                <div>
-                  <Text
-                    type="secondary"
-                    style={{
-                      fontSize: 11,
-                    }}
-                  >
-                    Gói hiện tại
-                  </Text>
+                <div className="license-status-side">
+                  <Text type="secondary">Gói hiện tại</Text>
 
                   <div>
                     <Tag
                       color={
-                        activateChurch?.license_status === "expired"
-                          ? "error"
-                          : activateChurch?.license_type === "lifetime"
-                            ? "gold"
-                            : activateChurch?.license_type === "yearly"
+                        isCurrentLifetime
+                          ? "gold"
+                          : isCurrentYearlyExpired
+                            ? "error"
+                            : isCurrentYearlyActive
                               ? "processing"
                               : "default"
                       }
-                      style={{
-                        marginTop: 4,
-                        fontWeight: 600,
-                      }}
                     >
-                      {getCurrentLicenseName()}
+                      {licenseCurrentLabel}
                     </Tag>
                   </div>
                 </div>
 
                 <div className="activate-arrow">→</div>
 
-                <div>
-                  <Text
-                    type="secondary"
-                    style={{
-                      fontSize: 11,
-                    }}
-                  >
-                    Sau khi thao tác
-                  </Text>
+                <div className="license-status-side">
+                  <Text type="secondary">Sau khi thao tác</Text>
 
                   <div>
                     <Tag
-                      color={isCurrentLifetime ? "gold" : "success"}
+                      color={isSelectedLifetime ? "gold" : "success"}
                       icon={<CheckCircleFilled />}
-                      style={{
-                        marginTop: 4,
-                        fontWeight: 600,
-                      }}
                     >
-                      {isCurrentLifetime
-                        ? "ĐÃ SỞ HỮU"
-                        : selectedLicenseType === "lifetime"
-                          ? "VĨNH VIỄN"
-                          : "1 NĂM"}
+                      {selectedLabel}
                     </Tag>
                   </div>
                 </div>
               </div>
 
-              {/* LICENSE DETAILS */}
+              {/* DETAIL */}
 
               <div className="license-detail-card">
                 <div className="license-detail-item">
                   <span>Trạng thái</span>
 
                   <strong>
-                    {activateChurch?.license_status === "active"
+                    {isCurrentLifetime
                       ? "Đang hoạt động"
-                      : activateChurch?.license_status === "expired"
-                        ? "Đã hết hạn"
-                        : "Đang dùng thử"}
+                      : isCurrentYearlyActive
+                        ? "Đang hoạt động"
+                        : isCurrentYearlyExpired
+                          ? "Đã hết hạn"
+                          : "Đang dùng thử"}
                   </strong>
                 </div>
 
@@ -2514,9 +2565,9 @@ const ChurchPage = () => {
                   <span>Gói sử dụng</span>
 
                   <strong>
-                    {activateChurch?.license_type === "lifetime"
+                    {isCurrentLifetime
                       ? "Vĩnh viễn"
-                      : activateChurch?.license_type === "yearly"
+                      : isCurrentYearly
                         ? "1 năm"
                         : "Trial"}
                   </strong>
@@ -2532,7 +2583,7 @@ const ChurchPage = () => {
                   </div>
                 )}
 
-                {activateChurch?.license_type === "lifetime" ? (
+                {isCurrentLifetime ? (
                   <div className="license-detail-item">
                     <span>Hạn sử dụng</span>
 
@@ -2544,44 +2595,44 @@ const ChurchPage = () => {
                       Vĩnh viễn
                     </strong>
                   </div>
-                ) : (
-                  activateChurch?.license_expires_at && (
-                    <div className="license-detail-item">
-                      <span>Hạn sử dụng</span>
+                ) : activateChurch?.license_expires_at ? (
+                  <div className="license-detail-item">
+                    <span>Hạn sử dụng</span>
 
-                      <strong
-                        style={{
-                          color:
-                            activateChurch?.license_status === "expired"
-                              ? dangerRed
-                              : primaryNavy,
-                        }}
-                      >
-                        {formatDate(activateChurch.license_expires_at) || "—"}
-                      </strong>
-                    </div>
-                  )
+                    <strong
+                      style={{
+                        color: isCurrentYearlyExpired ? dangerRed : primaryNavy,
+                      }}
+                    >
+                      {formatDate(activateChurch.license_expires_at) || "—"}
+                    </strong>
+                  </div>
+                ) : null}
+
+                {isCurrentYearlyActive && (
+                  <div className="license-detail-item">
+                    <span>Thời gian còn lại</span>
+
+                    <strong
+                      style={{
+                        color:
+                          Number(
+                            activateChurch?.days_remaining ??
+                              daysRemaining ??
+                              0,
+                          ) <= 7
+                            ? warningOrange
+                            : successGreen,
+                      }}
+                    >
+                      Còn{" "}
+                      {Number(
+                        activateChurch?.days_remaining ?? daysRemaining ?? 0,
+                      )}{" "}
+                      ngày
+                    </strong>
+                  </div>
                 )}
-
-                {activateChurch?.license_type === "yearly" &&
-                  activateChurch?.license_status === "active" && (
-                    <div className="license-detail-item">
-                      <span>Thời gian còn lại</span>
-
-                      <strong
-                        style={{
-                          color:
-                            Number(activateChurch.days_remaining ?? 0) <= 7
-                              ? warningOrange
-                              : successGreen,
-                        }}
-                      >
-                        {daysRemaining !== null
-                          ? `Còn ${daysRemaining} ngày`
-                          : "Không thời hạn"}
-                      </strong>
-                    </div>
-                  )}
               </div>
 
               {/* PACKAGE */}
@@ -2599,31 +2650,27 @@ const ChurchPage = () => {
 
                     <div
                       className={`license-package-card ${
-                        selectedLicenseType === "yearly" ? "selected" : ""
-                      } ${isCurrentYearly ? "current" : ""}`}
+                        isSelectedYearly ? "selected" : ""
+                      } ${isCurrentYearlyActive ? "current" : ""}`}
                       onClick={() => {
-                        if (activatingId || isCurrentYearly) {
+                        if (activatingId) {
                           return;
                         }
 
                         setSelectedLicenseType("yearly");
                       }}
                       style={{
-                        opacity: isCurrentYearly ? 0.65 : 1,
-
-                        cursor: isCurrentYearly ? "not-allowed" : "pointer",
+                        cursor: activatingId ? "not-allowed" : "pointer",
                       }}
                     >
                       <div className="package-radio">
-                        {selectedLicenseType === "yearly" && (
-                          <CheckCircleFilled />
-                        )}
+                        {isSelectedYearly && <CheckCircleFilled />}
                       </div>
 
                       <div className="package-content">
                         <div className="package-name">
                           Gói 1 năm
-                          {isCurrentYearly && (
+                          {isCurrentYearlyActive && (
                             <Tag
                               color="blue"
                               style={{
@@ -2635,12 +2682,28 @@ const ChurchPage = () => {
                               ĐANG SỬ DỤNG
                             </Tag>
                           )}
+                          {isCurrentYearlyExpired && (
+                            <Tag
+                              color="red"
+                              style={{
+                                marginLeft: 6,
+                                fontSize: 10,
+                                borderRadius: 20,
+                              }}
+                            >
+                              ĐÃ HẾT HẠN
+                            </Tag>
+                          )}
                         </div>
 
                         <div className="package-price">599.000đ</div>
 
                         <div className="package-description">
-                          Sử dụng FaithEdu trong 12 tháng
+                          {isCurrentYearlyActive
+                            ? "Gia hạn thêm 12 tháng"
+                            : isCurrentYearlyExpired
+                              ? "Kích hoạt lại 12 tháng"
+                              : "Sử dụng FaithEdu trong 12 tháng"}
                         </div>
 
                         <div className="package-feature">
@@ -2659,43 +2722,25 @@ const ChurchPage = () => {
 
                     <div
                       className={`license-package-card lifetime ${
-                        selectedLicenseType === "lifetime" ? "selected" : ""
-                      } ${isCurrentLifetime ? "current" : ""}`}
+                        isSelectedLifetime ? "selected" : ""
+                      }`}
                       onClick={() => {
-                        if (activatingId || isCurrentLifetime) {
+                        if (activatingId) {
                           return;
                         }
 
                         setSelectedLicenseType("lifetime");
                       }}
                       style={{
-                        opacity: isCurrentLifetime ? 0.7 : 1,
-
-                        cursor: isCurrentLifetime ? "not-allowed" : "pointer",
+                        cursor: activatingId ? "not-allowed" : "pointer",
                       }}
                     >
                       <div className="package-radio">
-                        {selectedLicenseType === "lifetime" && (
-                          <CheckCircleFilled />
-                        )}
+                        {isSelectedLifetime && <CheckCircleFilled />}
                       </div>
 
                       <div className="package-content">
-                        <div className="package-name">
-                          Gói vĩnh viễn
-                          {isCurrentLifetime && (
-                            <Tag
-                              color="gold"
-                              style={{
-                                marginLeft: 6,
-                                fontSize: 10,
-                                borderRadius: 20,
-                              }}
-                            >
-                              ĐANG SỬ DỤNG
-                            </Tag>
-                          )}
-                        </div>
+                        <div className="package-name">Gói vĩnh viễn</div>
 
                         <div className="package-price">2.599.000đ</div>
 
@@ -2734,9 +2779,17 @@ const ChurchPage = () => {
                       ? "Gói vĩnh viễn đang được sử dụng"
                       : isUpgradeToLifetime
                         ? "Nâng cấp lên gói vĩnh viễn"
-                        : selectedLicenseType === "yearly"
-                          ? "Gói 1 năm"
-                          : "Gói vĩnh viễn"}
+                        : isRenewYearly
+                          ? "Gia hạn gói 1 năm"
+                          : isReactivateYearly
+                            ? "Kích hoạt lại gói 1 năm"
+                            : isExpiredToLifetime
+                              ? "Mua gói vĩnh viễn"
+                              : isTrialToYearly
+                                ? "Kích hoạt gói 1 năm"
+                                : isTrialToLifetime
+                                  ? "Kích hoạt gói vĩnh viễn"
+                                  : "Gói FaithEdu"}
                   </Text>
 
                   <div>
@@ -2748,28 +2801,68 @@ const ChurchPage = () => {
                     >
                       {isCurrentLifetime
                         ? "License không có ngày hết hạn và không cần gia hạn."
-                        : isUpgradeToLifetime
-                          ? "Sau khi nâng cấp, license sẽ không còn ngày hết hạn."
-                          : selectedLicenseType === "yearly"
-                            ? "Hạn sử dụng 12 tháng kể từ ngày kích hoạt."
-                            : "License không có ngày hết hạn."}
+                        : isRenewYearly
+                          ? "License sẽ được gia hạn thêm 12 tháng."
+                          : isReactivateYearly
+                            ? "License sẽ được kích hoạt lại trong 12 tháng."
+                            : isUpgradeToLifetime ||
+                                isExpiredToLifetime ||
+                                isTrialToLifetime
+                              ? "License sẽ chuyển sang vĩnh viễn và không còn ngày hết hạn."
+                              : "License có thời hạn 12 tháng kể từ ngày kích hoạt."}
                     </Text>
                   </div>
                 </div>
               </div>
 
-              {/* UPGRADE */}
+              {/* RENEW NOTICE */}
 
-              {isUpgradeToLifetime && (
+              {isRenewYearly && (
+                <div className="yearly-notice">
+                  <SafetyCertificateOutlined />
+
+                  <div>
+                    <b>Gia hạn gói 1 năm</b>
+
+                    <div>
+                      Gói hiện tại đang hoạt động. Thao tác này sẽ cộng thêm 12
+                      tháng vào thời hạn license.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* REACTIVATE NOTICE */}
+
+              {isReactivateYearly && (
+                <div className="reactivate-notice">
+                  <UnlockOutlined />
+
+                  <div>
+                    <b>Kích hoạt lại gói 1 năm</b>
+
+                    <div>
+                      License hiện tại đã hết hạn. Sau khi xác nhận, cơ sở sẽ có
+                      thêm 12 tháng sử dụng FaithEdu.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* UPGRADE NOTICE */}
+
+              {(isUpgradeToLifetime ||
+                isExpiredToLifetime ||
+                isTrialToLifetime) && (
                 <div className="upgrade-notice">
                   <SafetyCertificateOutlined />
 
                   <div>
-                    <b>Nâng cấp lên vĩnh viễn</b>
+                    <b>Gói vĩnh viễn</b>
 
                     <div>
-                      Gói hiện tại 1 năm sẽ được chuyển sang license vĩnh viễn
-                      sau khi xác nhận.
+                      Sau khi xác nhận, license sẽ không còn ngày hết hạn và
+                      không cần gia hạn.
                     </div>
                   </div>
                 </div>
@@ -2785,7 +2878,7 @@ const ChurchPage = () => {
                     <b>License vĩnh viễn đang hoạt động</b>
 
                     <div>
-                      Cơ sở này không cần gia hạn và không thể kích hoạt lại một
+                      Cơ sở này không cần gia hạn và không thể kích hoạt một
                       license khác.
                     </div>
                   </div>
@@ -2808,14 +2901,7 @@ const ChurchPage = () => {
 
               {/* ACTION */}
 
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 10,
-                  marginTop: 24,
-                }}
-              >
+              <div className="license-actions">
                 <Button
                   size="large"
                   onClick={closeActivateModal}
@@ -2842,11 +2928,15 @@ const ChurchPage = () => {
                       fontWeight: 600,
                     }}
                   >
-                    {isUpgradeToLifetime
-                      ? "Nâng cấp lên vĩnh viễn"
-                      : selectedLicenseType === "yearly"
-                        ? "Kích hoạt gói 1 năm"
-                        : "Kích hoạt gói vĩnh viễn"}
+                    {isUpgradeToLifetime ||
+                    isExpiredToLifetime ||
+                    isTrialToLifetime
+                      ? "Kích hoạt vĩnh viễn"
+                      : isRenewYearly
+                        ? "Gia hạn 1 năm"
+                        : isReactivateYearly
+                          ? "Mua lại 1 năm"
+                          : "Kích hoạt gói 1 năm"}
                   </Button>
                 )}
               </div>
@@ -2854,7 +2944,7 @@ const ChurchPage = () => {
           </Modal>
 
           {/* ==================================================
-              STYLES
+              STYLE
           ================================================== */}
 
           <style
@@ -2996,214 +3086,6 @@ const ChurchPage = () => {
                   background: #fff5f5 !important;
                 }
 
-                .license-package-title {
-                  text-align: left;
-                  color: ${primaryNavy};
-                  font-size: 13px;
-                  font-weight: 700;
-                  margin-top: 20px;
-                  margin-bottom: 10px;
-                }
-
-                .license-package-grid {
-                  display: grid;
-                  grid-template-columns: repeat(2, 1fr);
-                  gap: 12px;
-                }
-
-                .license-package-card {
-                  position: relative;
-                  display: flex;
-                  gap: 10px;
-                  padding: 15px;
-                  cursor: pointer;
-                  text-align: left;
-                  border-radius: 13px;
-                  background: #fff;
-                  border: 2px solid #e2e8f0;
-                  transition: all .2s ease;
-                }
-
-                .license-package-card:hover {
-                  border-color: rgba(27,54,93,.35);
-                  box-shadow: 0 5px 15px rgba(27,54,93,.06);
-                }
-
-                .license-package-card.selected {
-                  border-color: ${primaryNavy};
-                  background: rgba(27,54,93,.035);
-                  box-shadow: 0 6px 18px rgba(27,54,93,.08);
-                }
-
-                .license-package-card.lifetime.selected {
-                  border-color: ${accentGold};
-                  background: rgba(212,175,55,.045);
-                }
-
-                .license-package-card.current {
-                  box-shadow: none;
-                }
-
-                .package-radio {
-                  width: 22px;
-                  height: 22px;
-                  flex-shrink: 0;
-                  color: ${primaryNavy};
-                  font-size: 20px;
-                  line-height: 22px;
-                }
-
-                .license-package-card.lifetime .package-radio {
-                  color: ${accentGold};
-                }
-
-                .package-content {
-                  min-width: 0;
-                }
-
-                .package-name {
-                  color: ${primaryNavy};
-                  font-size: 14px;
-                  font-weight: 700;
-                }
-
-                .package-price {
-                  margin-top: 3px;
-                  color: ${primaryNavy};
-                  font-size: 21px;
-                  font-weight: 800;
-                }
-
-                .package-description {
-                  margin-top: 4px;
-                  color: #64748b;
-                  font-size: 11px;
-                  line-height: 1.5;
-                }
-
-                .package-feature {
-                  display: flex;
-                  align-items: center;
-                  gap: 5px;
-                  margin-top: 7px;
-                  color: #475569;
-                  font-size: 11px;
-                }
-
-                .package-feature svg {
-                  color: ${successGreen};
-                  font-size: 11px;
-                }
-
-                .license-detail-card {
-                  margin-top: 14px;
-                  padding: 12px 14px;
-                  border-radius: 11px;
-                  background: #fff;
-                  border: 1px solid rgba(27,54,93,.09);
-                  display: flex;
-                  flex-direction: column;
-                  gap: 8px;
-                }
-
-                .license-detail-item {
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  gap: 15px;
-                  font-size: 12px;
-                }
-
-                .license-detail-item span {
-                  color: #64748b;
-                }
-
-                .license-detail-item strong {
-                  color: ${primaryNavy};
-                  text-align: right;
-                }
-
-                .selected-license-info {
-                  display: flex;
-                  align-items: flex-start;
-                  gap: 10px;
-                  margin-top: 14px;
-                  padding: 11px 13px;
-                  text-align: left;
-                  border-radius: 10px;
-                  background: rgba(27,54,93,.045);
-                  border: 1px solid rgba(27,54,93,.1);
-                }
-
-                .selected-license-info > svg {
-                  margin-top: 2px;
-                  color: ${accentGold};
-                  font-size: 18px;
-                }
-
-                .upgrade-notice {
-                  margin-top: 12px;
-                  padding: 12px 14px;
-                  display: flex;
-                  align-items: flex-start;
-                  gap: 9px;
-                  text-align: left;
-                  border-radius: 10px;
-                  color: ${primaryNavy};
-                  background: rgba(212,175,55,.08);
-                  border: 1px solid rgba(212,175,55,.3);
-                  font-size: 12px;
-                  line-height: 1.6;
-                }
-
-                .upgrade-notice > svg {
-                  margin-top: 2px;
-                  color: ${accentGold};
-                  font-size: 17px;
-                  flex-shrink: 0;
-                }
-
-                .upgrade-notice b {
-                  display: block;
-                  margin-bottom: 2px;
-                }
-
-                .lifetime-notice {
-                  margin-top: 12px;
-                  padding: 12px 14px;
-                  display: flex;
-                  align-items: flex-start;
-                  gap: 9px;
-                  text-align: left;
-                  border-radius: 10px;
-                  color: ${successGreen};
-                  background: rgba(46,125,50,.06);
-                  border: 1px solid rgba(46,125,50,.2);
-                  font-size: 12px;
-                  line-height: 1.6;
-                }
-
-                .lifetime-notice > svg {
-                  margin-top: 2px;
-                  font-size: 17px;
-                  flex-shrink: 0;
-                }
-
-                .lifetime-notice b {
-                  display: block;
-                  margin-bottom: 2px;
-                }
-
-                .modal-custom-title {
-                  display: flex;
-                  align-items: center;
-                  gap: 8px;
-                  font-family: 'Playfair Display', Georgia, serif;
-                  color: ${primaryNavy};
-                  font-size: 18px;
-                  font-weight: 700;
-                }
-
                 .form-left-box {
                   background: ${softBg};
                   padding: 18px;
@@ -3311,10 +3193,215 @@ const ChurchPage = () => {
                   border: 1px solid rgba(27,54,93,.08);
                 }
 
+                .license-status-side {
+                  min-width: 130px;
+                }
+
                 .activate-arrow {
                   font-size: 22px;
                   color: ${accentGold};
                   font-weight: 700;
+                }
+
+                .license-detail-card {
+                  margin-top: 14px;
+                  padding: 12px 14px;
+                  border-radius: 11px;
+                  background: #fff;
+                  border: 1px solid rgba(27,54,93,.09);
+                  display: flex;
+                  flex-direction: column;
+                  gap: 8px;
+                }
+
+                .license-detail-item {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  gap: 15px;
+                  font-size: 12px;
+                }
+
+                .license-detail-item span {
+                  color: #64748b;
+                }
+
+                .license-detail-item strong {
+                  color: ${primaryNavy};
+                  text-align: right;
+                }
+
+                .license-package-title {
+                  text-align: left;
+                  color: ${primaryNavy};
+                  font-size: 13px;
+                  font-weight: 700;
+                  margin-top: 20px;
+                  margin-bottom: 10px;
+                }
+
+                .license-package-grid {
+                  display: grid;
+                  grid-template-columns: repeat(2, 1fr);
+                  gap: 12px;
+                }
+
+                .license-package-card {
+                  position: relative;
+                  display: flex;
+                  gap: 10px;
+                  padding: 15px;
+                  cursor: pointer;
+                  text-align: left;
+                  border-radius: 13px;
+                  background: #fff;
+                  border: 2px solid #e2e8f0;
+                  transition: all .2s ease;
+                }
+
+                .license-package-card:hover {
+                  border-color: rgba(27,54,93,.35);
+                  box-shadow: 0 5px 15px rgba(27,54,93,.06);
+                }
+
+                .license-package-card.selected {
+                  border-color: ${primaryNavy};
+                  background: rgba(27,54,93,.035);
+                  box-shadow: 0 6px 18px rgba(27,54,93,.08);
+                }
+
+                .license-package-card.lifetime.selected {
+                  border-color: ${accentGold};
+                  background: rgba(212,175,55,.045);
+                }
+
+                .license-package-card.current {
+                  box-shadow: none;
+                }
+
+                .package-radio {
+                  width: 22px;
+                  height: 22px;
+                  flex-shrink: 0;
+                  color: ${primaryNavy};
+                  font-size: 20px;
+                  line-height: 22px;
+                }
+
+                .license-package-card.lifetime .package-radio {
+                  color: ${accentGold};
+                }
+
+                .package-content {
+                  min-width: 0;
+                }
+
+                .package-name {
+                  color: ${primaryNavy};
+                  font-size: 14px;
+                  font-weight: 700;
+                }
+
+                .package-price {
+                  margin-top: 3px;
+                  color: ${primaryNavy};
+                  font-size: 21px;
+                  font-weight: 800;
+                }
+
+                .package-description {
+                  margin-top: 4px;
+                  color: #64748b;
+                  font-size: 11px;
+                  line-height: 1.5;
+                }
+
+                .package-feature {
+                  display: flex;
+                  align-items: center;
+                  gap: 5px;
+                  margin-top: 7px;
+                  color: #475569;
+                  font-size: 11px;
+                }
+
+                .package-feature svg {
+                  color: ${successGreen};
+                  font-size: 11px;
+                }
+
+                .selected-license-info {
+                  display: flex;
+                  align-items: flex-start;
+                  gap: 10px;
+                  margin-top: 14px;
+                  padding: 11px 13px;
+                  text-align: left;
+                  border-radius: 10px;
+                  background: rgba(27,54,93,.045);
+                  border: 1px solid rgba(27,54,93,.1);
+                }
+
+                .selected-license-info > svg {
+                  margin-top: 2px;
+                  color: ${accentGold};
+                  font-size: 18px;
+                }
+
+                .yearly-notice,
+                .reactivate-notice,
+                .upgrade-notice,
+                .lifetime-notice {
+                  margin-top: 12px;
+                  padding: 12px 14px;
+                  display: flex;
+                  align-items: flex-start;
+                  gap: 9px;
+                  text-align: left;
+                  border-radius: 10px;
+                  font-size: 12px;
+                  line-height: 1.6;
+                }
+
+                .yearly-notice {
+                  color: ${primaryNavy};
+                  background: rgba(27,54,93,.045);
+                  border: 1px solid rgba(27,54,93,.12);
+                }
+
+                .reactivate-notice {
+                  color: #92400e;
+                  background: #fffbeb;
+                  border: 1px solid #fde68a;
+                }
+
+                .upgrade-notice {
+                  color: ${primaryNavy};
+                  background: rgba(212,175,55,.08);
+                  border: 1px solid rgba(212,175,55,.3);
+                }
+
+                .lifetime-notice {
+                  color: ${successGreen};
+                  background: rgba(46,125,50,.06);
+                  border: 1px solid rgba(46,125,50,.2);
+                }
+
+                .yearly-notice > svg,
+                .reactivate-notice > svg,
+                .upgrade-notice > svg,
+                .lifetime-notice > svg {
+                  margin-top: 2px;
+                  font-size: 17px;
+                  flex-shrink: 0;
+                }
+
+                .yearly-notice b,
+                .reactivate-notice b,
+                .upgrade-notice b,
+                .lifetime-notice b {
+                  display: block;
+                  margin-bottom: 2px;
                 }
 
                 .activate-warning {
@@ -3330,6 +3417,23 @@ const ChurchPage = () => {
                   border: 1px solid #fde68a;
                   font-size: 12px;
                   line-height: 1.6;
+                }
+
+                .license-actions {
+                  display: flex;
+                  justify-content: flex-end;
+                  gap: 10px;
+                  margin-top: 24px;
+                }
+
+                .modal-custom-title {
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  font-family: 'Playfair Display', Georgia, serif;
+                  color: ${primaryNavy};
+                  font-size: 18px;
+                  font-weight: 700;
                 }
 
                 @media (max-width: 1100px) {
@@ -3366,6 +3470,10 @@ const ChurchPage = () => {
                     gap: 12px;
                   }
 
+                  .license-status-side {
+                    min-width: 0;
+                  }
+
                   .church-editorial-layout {
                     padding: 20px 8px 50px;
                   }
@@ -3374,12 +3482,16 @@ const ChurchPage = () => {
                     height: 380px !important;
                   }
 
-                  .activate-church-card {
-                    text-align: left;
-                  }
-
                   .license-detail-item {
                     align-items: flex-start;
+                  }
+
+                  .license-actions {
+                    flex-direction: column-reverse;
+                  }
+
+                  .license-actions .ant-btn {
+                    width: 100%;
                   }
                 }
               `,
