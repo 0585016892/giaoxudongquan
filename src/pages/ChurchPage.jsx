@@ -787,20 +787,18 @@ const ChurchPage = () => {
       if (type === "lifetime") {
         setSelectedLicenseType("lifetime");
       } else if (type === "yearly") {
-
-      /*
-       * YEARLY
-       * Cho phép:
-       * - yearly -> yearly
-       * - yearly -> lifetime
-       */
+        /*
+         * YEARLY
+         * Cho phép:
+         * - yearly -> yearly
+         * - yearly -> lifetime
+         */
         setSelectedLicenseType("yearly");
       } else if (type === "trial" || status === "trial") {
-
-      /*
-       * TRIAL
-       * Mặc định yearly.
-       */
+        /*
+         * TRIAL
+         * Mặc định yearly.
+         */
         setSelectedLicenseType("yearly");
       } else {
         setSelectedLicenseType("yearly");
