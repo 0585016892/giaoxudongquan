@@ -162,6 +162,10 @@ export default function AdminSidebar({ collapsed = false }) {
                 label: "Ngân hàng bài học & câu hỏi",
               },
               {
+                key: "/catechism-programs",
+                label: "Danh mục chương trình Giáo lý",
+              },
+              {
                 key: "/marriage-students",
                 label: "Danh sách học viên",
               },
