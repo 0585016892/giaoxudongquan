@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import {
   Layout,
   Menu,
@@ -28,7 +28,6 @@ import {
   MessageOutlined,
   FolderOpenOutlined,
   GlobalOutlined,
-  MenuOutlined,
 } from "@ant-design/icons";
 
 import { useNavigate, useLocation } from "react-router-dom";
@@ -43,7 +42,11 @@ const accentGold = "#D4AF37";
 const softBg = "#FAFAFA";
 const activeBg = "#FAF6ED";
 
-export default function AdminSidebar({ collapsed = false }) {
+export default function AdminSidebar({
+  collapsed = false,
+  mobileOpen = false,
+  onCloseMobileMenu,
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const screens = useBreakpoint();
@@ -51,36 +54,34 @@ export default function AdminSidebar({ collapsed = false }) {
   const { user } = useUser();
 
   const userRole = user?.role || "editor";
-
-  // Responsive
   const isMobile = !screens.md;
 
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const closeMobileMenu = useCallback(() => {
+    onCloseMobileMenu?.();
+  }, [onCloseMobileMenu]);
 
-  // Đóng Drawer khi chuyển sang Desktop
+  // CLOSE DRAWER WHEN SWITCHING TO DESKTOP
   useEffect(() => {
-    if (!isMobile) {
-      setMobileOpen(false);
+    if (!isMobile && mobileOpen) {
+      closeMobileMenu();
     }
-  }, [isMobile]);
+  }, [isMobile, mobileOpen, closeMobileMenu]);
 
-  // =====================================================
-  // MENU GROUP LABEL
-  // =====================================================
-
-  const renderGroupLabel = React.useCallback(
+  // GROUP LABEL
+  const renderGroupLabel = useCallback(
     (text) => (
-      <div className={`sidebar-group-label ${collapsed ? "collapsed" : ""}`}>
+      <div
+        className={`sidebar-group-label ${
+          collapsed && !isMobile ? "collapsed" : ""
+        }`}
+      >
         {text}
       </div>
     ),
-    [collapsed],
+    [collapsed, isMobile],
   );
 
-  // =====================================================
   // MENU ITEMS
-  // =====================================================
-
   const menuItems = useMemo(
     () => [
       {
@@ -329,68 +330,59 @@ export default function AdminSidebar({ collapsed = false }) {
     [userRole, renderGroupLabel],
   );
 
-  // =====================================================
-  // TỰ ĐỘNG MỞ MENU CHA THEO ROUTE
-  // =====================================================
-
-  const getOpenKeys = (items, pathname) => {
+  // FIND OPEN PARENT MENUS
+  const getOpenKeys = useCallback((items, pathname) => {
     const result = [];
 
     const findParent = (list) => {
       list?.forEach((item) => {
-        if (item.children?.length) {
-          const hasActiveChild = item.children.some((child) => {
-            return (
-              child.key === pathname ||
-              child.children?.some((sub) => sub.key === pathname)
-            );
-          });
+        if (!item.children?.length) return;
 
-          if (hasActiveChild) {
-            result.push(item.key);
-          }
+        const hasActiveChild = item.children.some((child) => {
+          return (
+            child.key === pathname ||
+            child.children?.some((sub) => sub.key === pathname)
+          );
+        });
 
-          findParent(item.children);
+        if (hasActiveChild) {
+          result.push(item.key);
         }
+
+        findParent(item.children);
       });
     };
 
     findParent(items);
 
     return result;
-  };
+  }, []);
 
   const [openKeys, setOpenKeys] = useState([]);
 
   useEffect(() => {
     setOpenKeys(getOpenKeys(menuItems, location.pathname));
-  }, [location.pathname, menuItems]);
+  }, [location.pathname, menuItems, getOpenKeys]);
 
-  // =====================================================
   // MENU CLICK
-  // =====================================================
-
   const handleMenuClick = ({ key }) => {
     if (key === "go-home") {
       window.open("/giao-xu", "_blank");
+      if (isMobile) closeMobileMenu();
       return;
     }
 
     navigate(key);
 
-    // Mobile tự đóng Drawer
     if (isMobile) {
-      setMobileOpen(false);
+      closeMobileMenu();
     }
   };
 
-  // =====================================================
   // SIDEBAR CONTENT
-  // =====================================================
-
   const SidebarContent = ({ mobile = false }) => (
     <div className={`sidebar-inner ${mobile ? "mobile-sidebar-inner" : ""}`}>
-      {/* BRAND HEADER */}
+      {/* BRAND */}
       <div className="sidebar-brand-header">
         <div className="brand-cube-logo">
           <Text className="brand-cube-text">ĐQ</Text>
@@ -449,64 +441,53 @@ export default function AdminSidebar({ collapsed = false }) {
         token: {
           colorPrimary: primaryNavy,
           borderRadius: 10,
-          fontFamily: "'Be Vietnam Pro', -apple-system, sans-serif",
+          fontFamily: "'Be Vietnam Pro', sans-serif",
         },
       }}
     >
-      {/* ================================================= */}
-      {/* MOBILE SIDEBAR */}
-      {/* ================================================= */}
-
       {isMobile ? (
-        <>
-          {/* NÚT MỞ MENU MOBILE */}
-          <Button
-            type="default"
-            className="mobile-sidebar-trigger"
-            icon={<MenuOutlined />}
-            onClick={() => setMobileOpen(true)}
-            aria-label="Mở menu"
-          />
-
-          <Drawer
-            placement="left"
-            width={290}
-            open={mobileOpen}
-            onClose={() => setMobileOpen(false)}
-            closable={false}
-            className="responsive-sidebar-drawer"
-            styles={{
-              body: {
-                padding: 0,
-                overflow: "hidden",
-              },
-            }}
-          >
-            <div className="mobile-sidebar-close">
-              <div className="mobile-sidebar-heading">
-                <span>MENU QUẢN TRỊ</span>
-              </div>
-
-              <Button
-                type="text"
-                onClick={() => setMobileOpen(false)}
-                icon={<span style={{ fontSize: 20 }}>×</span>}
-              />
+        // MOBILE DRAWER - KHÔNG CÓ NÚT HAMBURGER RIÊNG
+        <Drawer
+          placement="left"
+          width="min(300px, 85vw)"
+          open={mobileOpen}
+          onClose={closeMobileMenu}
+          closable={false}
+          destroyOnClose={false}
+          className="responsive-sidebar-drawer"
+          styles={{
+            body: {
+              padding: 0,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            },
+          }}
+        >
+          <div className="mobile-sidebar-close">
+            <div className="mobile-sidebar-heading">
+              <span>MENU QUẢN TRỊ</span>
+              <small>GIÁO XỨ ĐỒNG QUAN</small>
             </div>
 
-            <SidebarContent mobile />
-          </Drawer>
-        </>
-      ) : (
-        /* ================================================= */
-        /* DESKTOP SIDEBAR */
-        /* ================================================= */
+            <Button
+              type="text"
+              onClick={closeMobileMenu}
+              className="mobile-close-button"
+              aria-label="Đóng menu"
+            >
+              ×
+            </Button>
+          </div>
 
+          <SidebarContent mobile />
+        </Drawer>
+      ) : (
+        // DESKTOP SIDEBAR
         <Sider
           theme="light"
           width={260}
           collapsedWidth={76}
-          collapsible
           collapsed={collapsed}
           trigger={null}
           className="editorial-sidebar"
@@ -515,390 +496,406 @@ export default function AdminSidebar({ collapsed = false }) {
         </Sider>
       )}
 
-      {/* ================================================= */}
-      {/* RESPONSIVE STYLES */}
-      {/* ================================================= */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
 
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+        /* SIDEBAR BASE */
 
-            .editorial-sidebar {
-              height: 100vh;
-              height: 100dvh;
-              position: sticky;
-              top: 0;
-              left: 0;
-              z-index: 90;
-              background: #fff !important;
-              border-right: 1px solid rgba(212,175,55,.25) !important;
-              transition: all .25s ease !important;
-              font-family: 'Be Vietnam Pro', sans-serif;
-              flex: 0 0 auto;
-            }
+        .editorial-sidebar {
+          height: 100vh;
+          height: 100dvh;
+          position: sticky;
+          top: 0;
+          left: 0;
+          z-index: 90;
+          background: #fff !important;
+          border-right: 1px solid rgba(212,175,55,.25) !important;
+          font-family: 'Be Vietnam Pro', sans-serif;
+          flex: 0 0 auto;
+          transition: all .25s ease !important;
+        }
 
-            .sidebar-inner {
-              height: 100%;
-              display: flex;
-              flex-direction: column;
-              overflow: hidden;
-              background: #fff;
-              position: relative;
-            }
+        .sidebar-inner {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          background: #fff;
+          position: relative;
+        }
 
-            /* BRAND */
+        /* BRAND */
 
-            .sidebar-brand-header {
-              padding: 0 18px;
-              display: flex;
-              align-items: center;
-              gap: 12px;
-              height: 64px;
-              min-height: 64px;
-              border-bottom: 1px solid rgba(27,54,93,.08);
-              flex-shrink: 0;
-            }
+        .sidebar-brand-header {
+          padding: 0 18px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          height: 64px;
+          min-height: 64px;
+          border-bottom: 1px solid rgba(27,54,93,.08);
+          flex-shrink: 0;
+        }
 
-            .brand-cube-logo {
-              width: 36px;
-              height: 36px;
-              background: linear-gradient(135deg, ${primaryNavy}, #0f2342);
-              border: 1px solid ${accentGold};
-              border-radius: 10px;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              box-shadow: 0 4px 12px rgba(27,54,93,.2);
-              flex-shrink: 0;
-            }
+        .brand-cube-logo {
+          width: 36px;
+          height: 36px;
+          background: linear-gradient(135deg,${primaryNavy},#0f2342);
+          border: 1px solid ${accentGold};
+          border-radius: 10px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          box-shadow: 0 4px 12px rgba(27,54,93,.2);
+          flex-shrink: 0;
+        }
 
-            .brand-cube-text {
-              color: #fff !important;
-              font-weight: 800;
-              font-size: 13px;
-              font-family: 'Playfair Display', serif;
-            }
+        .brand-cube-text {
+          color: #fff !important;
+          font-weight: 800;
+          font-size: 13px;
+          font-family: 'Playfair Display',serif;
+        }
 
-            .brand-info-box {
-              min-width: 0;
-              opacity: 1;
-              max-width: 180px;
-              transition: all .2s ease;
-              white-space: nowrap;
-              overflow: hidden;
-            }
+        .brand-info-box {
+          min-width: 0;
+          opacity: 1;
+          max-width: 180px;
+          transition: all .2s ease;
+          white-space: nowrap;
+          overflow: hidden;
+        }
 
-            .brand-info-box.collapsed {
-              opacity: 0;
-              max-width: 0;
-              visibility: hidden;
-            }
+        .brand-info-box.collapsed {
+          opacity: 0;
+          max-width: 0;
+          visibility: hidden;
+        }
 
-            .brand-title {
-              margin: 0 !important;
-              font-size: 15px !important;
-              color: ${primaryNavy} !important;
-              font-weight: 700 !important;
-              font-family: 'Playfair Display', serif !important;
-            }
+        .brand-title {
+          margin: 0 !important;
+          font-size: 15px !important;
+          color: ${primaryNavy} !important;
+          font-weight: 700 !important;
+          font-family: 'Playfair Display',serif !important;
+        }
 
-            .brand-role-subtitle {
-              font-size: 9px;
-              font-weight: 700;
-              color: ${accentGold};
-              letter-spacing: .8px;
-              display: block;
-            }
+        .brand-role-subtitle {
+          font-size: 9px;
+          font-weight: 700;
+          color: ${accentGold};
+          letter-spacing: .8px;
+          display: block;
+        }
 
-            /* GROUP LABEL */
+        /* GROUP LABEL */
 
-            .sidebar-group-label {
-              font-size: 10px;
-              color: ${accentGold};
-              font-weight: 700;
-              letter-spacing: 1px;
-              padding: 0 10px;
-              margin-bottom: 4px;
-              text-transform: uppercase;
-              white-space: nowrap;
-              overflow: hidden;
-            }
+        .sidebar-group-label {
+          font-size: 10px;
+          color: ${accentGold};
+          font-weight: 700;
+          letter-spacing: 1px;
+          padding: 0 10px;
+          margin-bottom: 4px;
+          text-transform: uppercase;
+          white-space: nowrap;
+          overflow: hidden;
+        }
 
-            .sidebar-group-label.collapsed {
-              opacity: 0;
-              max-height: 0;
-            }
+        .sidebar-group-label.collapsed {
+          opacity: 0;
+          max-height: 0;
+        }
 
-            /* MENU SCROLL */
+        /* MENU SCROLL */
 
-            .sidebar-menu-scroll {
-              flex: 1;
-              min-height: 0;
-              overflow-y: auto;
-              overflow-x: hidden;
-              padding: 12px 8px 20px;
-              overscroll-behavior: contain;
-            }
+        .sidebar-menu-scroll {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding: 12px 8px 20px;
+          overscroll-behavior: contain;
+        }
 
-            .custom-editorial-scrollbar::-webkit-scrollbar {
-              width: 4px;
-            }
+        .custom-editorial-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
 
-            .custom-editorial-scrollbar::-webkit-scrollbar-thumb {
-              background: rgba(212,175,55,.3);
-              border-radius: 10px;
-            }
+        .custom-editorial-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(212,175,55,.3);
+          border-radius: 10px;
+        }
 
-            .custom-editorial-scrollbar::-webkit-scrollbar-thumb:hover {
-              background: ${accentGold};
-            }
+        .custom-editorial-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: ${accentGold};
+        }
 
-            /* MENU ITEMS */
+        /* MENU ITEMS */
 
-            .editorial-sidebar .ant-menu,
-            .mobile-sidebar-inner .ant-menu {
-              font-family: 'Be Vietnam Pro', sans-serif;
-              font-size: 12px;
-            }
+        .editorial-sidebar .ant-menu,
+        .mobile-sidebar-inner .ant-menu {
+          font-family: 'Be Vietnam Pro',sans-serif;
+          font-size: 12px;
+          border: none !important;
+          background: transparent !important;
+        }
 
-            .editorial-sidebar .ant-menu-item,
-            .editorial-sidebar .ant-menu-submenu-title,
-            .mobile-sidebar-inner .ant-menu-item,
-            .mobile-sidebar-inner .ant-menu-submenu-title {
-              border-radius: 10px !important;
-              margin: 3px 0 !important;
-              color: #475569 !important;
-              font-weight: 500 !important;
-              min-height: 40px !important;
-              height: auto !important;
-              line-height: 1.5 !important;
-              padding-top: 10px !important;
-              padding-bottom: 10px !important;
-              transition: all .18s ease !important;
-            }
+        .editorial-sidebar .ant-menu-item,
+        .editorial-sidebar .ant-menu-submenu-title,
+        .mobile-sidebar-inner .ant-menu-item,
+        .mobile-sidebar-inner .ant-menu-submenu-title {
+          border-radius: 10px !important;
+          margin: 3px 0 !important;
+          color: #475569 !important;
+          font-weight: 500 !important;
+          min-height: 40px !important;
+          height: auto !important;
+          line-height: 1.5 !important;
+          padding-top: 10px !important;
+          padding-bottom: 10px !important;
+          transition: all .18s ease !important;
+        }
 
-            .editorial-sidebar .ant-menu-title-content,
-            .mobile-sidebar-inner .ant-menu-title-content {
-              white-space: normal;
-              overflow-wrap: anywhere;
-            }
+        .editorial-sidebar .ant-menu-title-content,
+        .mobile-sidebar-inner .ant-menu-title-content {
+          white-space: normal;
+          overflow-wrap: anywhere;
+        }
 
-            .editorial-sidebar .ant-menu-item:hover,
-            .editorial-sidebar .ant-menu-submenu-title:hover,
-            .mobile-sidebar-inner .ant-menu-item:hover,
-            .mobile-sidebar-inner .ant-menu-submenu-title:hover {
-              background: ${activeBg} !important;
-              color: ${primaryNavy} !important;
-            }
+        .editorial-sidebar .ant-menu-item:hover,
+        .editorial-sidebar .ant-menu-submenu-title:hover,
+        .mobile-sidebar-inner .ant-menu-item:hover,
+        .mobile-sidebar-inner .ant-menu-submenu-title:hover {
+          background: ${activeBg} !important;
+          color: ${primaryNavy} !important;
+        }
 
-            .editorial-sidebar .ant-menu-submenu-open > .ant-menu-submenu-title,
-            .mobile-sidebar-inner .ant-menu-submenu-open > .ant-menu-submenu-title {
-              color: ${primaryNavy} !important;
-              font-weight: 700 !important;
-            }
+        .editorial-sidebar .ant-menu-submenu-open > .ant-menu-submenu-title,
+        .mobile-sidebar-inner .ant-menu-submenu-open > .ant-menu-submenu-title {
+          color: ${primaryNavy} !important;
+          font-weight: 700 !important;
+        }
 
-            .editorial-sidebar .ant-menu-item-selected,
-            .mobile-sidebar-inner .ant-menu-item-selected {
-              background: ${activeBg} !important;
-              color: ${primaryNavy} !important;
-              font-weight: 700 !important;
-              position: relative;
-            }
+        .editorial-sidebar .ant-menu-item-selected,
+        .mobile-sidebar-inner .ant-menu-item-selected {
+          background: ${activeBg} !important;
+          color: ${primaryNavy} !important;
+          font-weight: 700 !important;
+          position: relative;
+        }
 
-            .editorial-sidebar .ant-menu-item-selected::before,
-            .mobile-sidebar-inner .ant-menu-item-selected::before {
-              content: "";
-              position: absolute;
-              left: 0;
-              top: 10px;
-              bottom: 10px;
-              width: 3px;
-              background: ${accentGold};
-              border-radius: 0 4px 4px 0;
-            }
+        .editorial-sidebar .ant-menu-item-selected::before,
+        .mobile-sidebar-inner .ant-menu-item-selected::before {
+          content: "";
+          position: absolute;
+          left: 0;
+          top: 10px;
+          bottom: 10px;
+          width: 3px;
+          background: ${accentGold};
+          border-radius: 0 4px 4px 0;
+        }
 
-            .editorial-sidebar .ant-menu-item-selected .anticon,
-            .mobile-sidebar-inner .ant-menu-item-selected .anticon {
-              color: ${primaryNavy} !important;
-            }
+        .editorial-sidebar .ant-menu-item-selected .anticon,
+        .mobile-sidebar-inner .ant-menu-item-selected .anticon {
+          color: ${primaryNavy} !important;
+        }
 
-            .editorial-sidebar .ant-menu-item-selected::after,
-            .mobile-sidebar-inner .ant-menu-item-selected::after {
-              display: none !important;
-            }
+        .editorial-sidebar .ant-menu-item-selected::after,
+        .mobile-sidebar-inner .ant-menu-item-selected::after {
+          display: none !important;
+        }
 
-            /* GO HOME */
+        /* GO HOME */
 
-            .go-home-menu-item {
-              border: 1px dashed rgba(212,175,55,.4) !important;
-              margin-top: 14px !important;
-              background: ${softBg} !important;
-            }
+        .go-home-menu-item {
+          border: 1px dashed rgba(212,175,55,.4) !important;
+          margin-top: 14px !important;
+          background: ${softBg} !important;
+        }
 
-            .go-home-menu-item:hover {
-              border-color: ${accentGold} !important;
-              background: ${activeBg} !important;
-            }
+        .go-home-menu-item:hover {
+          border-color: ${accentGold} !important;
+          background: ${activeBg} !important;
+        }
 
-            /* FOOTER */
+        /* FOOTER */
 
-            .sidebar-footer-copyright {
-              padding: 12px 8px;
-              text-align: center;
-              flex-shrink: 0;
-              background: #fff;
-              border-top: 1px solid rgba(27,54,93,.06);
-            }
+        .sidebar-footer-copyright {
+          padding: 12px 8px;
+          text-align: center;
+          flex-shrink: 0;
+          background: #fff;
+          border-top: 1px solid rgba(27,54,93,.06);
+        }
 
-            .footer-copyright-text {
-              font-size: 10px;
-              color: #94a3b8;
-              font-weight: 500;
-            }
+        .footer-copyright-text {
+          font-size: 10px;
+          color: #94a3b8;
+          font-weight: 500;
+        }
 
-            /* MOBILE TRIGGER */
+        /* MOBILE DRAWER */
 
-            .mobile-sidebar-trigger {
-              position: fixed;
-              top: 12px;
-              left: 12px;
-              z-index: 999;
-              width: 42px;
-              height: 42px;
-              border-radius: 12px;
-              background: ${primaryNavy};
-              color: #fff;
-              border: 1px solid ${accentGold};
-              box-shadow: 0 4px 14px rgba(27,54,93,.2);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            }
+        .responsive-sidebar-drawer {
+          z-index: 1200;
+        }
 
-            .mobile-sidebar-trigger:hover {
-              background: #254b78 !important;
-              color: #fff !important;
-              border-color: ${accentGold} !important;
-            }
+        .responsive-sidebar-drawer .ant-drawer-content {
+          background: #fff;
+        }
 
-            /* MOBILE DRAWER */
+        .responsive-sidebar-drawer .ant-drawer-body {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+        }
 
-            .responsive-sidebar-drawer .ant-drawer-content {
-              background: #fff;
-            }
+        .responsive-sidebar-drawer .ant-drawer-mask {
+          background: rgba(15,23,42,.55);
+          backdrop-filter: blur(3px);
+        }
 
-            .responsive-sidebar-drawer .ant-drawer-body {
-              display: flex;
-              flex-direction: column;
-              height: 100%;
-            }
+        .mobile-sidebar-close {
+          height: 58px;
+          min-height: 58px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 16px;
+          background: linear-gradient(135deg,#1B365D,#102744);
+          color: #fff;
+        }
 
-            .mobile-sidebar-close {
-              height: 48px;
-              min-height: 48px;
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              padding: 0 14px;
-              background: ${primaryNavy};
-              color: #fff;
-            }
+        .mobile-sidebar-heading {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 1px;
+          color: ${accentGold};
+        }
 
-            .mobile-sidebar-heading {
-              font-size: 11px;
-              font-weight: 700;
-              letter-spacing: 1px;
-              color: ${accentGold};
-            }
+        .mobile-sidebar-heading small {
+          font-size: 9px;
+          color: rgba(255,255,255,.7);
+          letter-spacing: 1.2px;
+        }
 
-            .mobile-sidebar-close .ant-btn {
-              color: #fff;
-            }
+        .mobile-close-button {
+          color: #fff !important;
+          font-size: 25px;
+          width: 36px;
+          height: 36px;
+          border-radius: 9px;
+        }
 
-            .mobile-sidebar-close .ant-btn:hover {
-              color: ${accentGold} !important;
-              background: rgba(255,255,255,.1) !important;
-            }
+        .mobile-close-button:hover {
+          color: ${accentGold} !important;
+          background: rgba(255,255,255,.1) !important;
+        }
 
-            .mobile-sidebar-inner {
-              flex: 1;
-              min-height: 0;
-            }
+        .mobile-sidebar-inner {
+          flex: 1;
+          min-height: 0;
+        }
 
-            /* TABLET */
+        .mobile-sidebar-inner .sidebar-brand-header {
+          height: 68px;
+          padding: 0 18px;
+        }
 
-            @media (min-width: 768px) and (max-width: 991px) {
-              .editorial-sidebar {
-                width: 76px !important;
-                max-width: 76px !important;
-                min-width: 76px !important;
-              }
+        .mobile-sidebar-inner .brand-info-box {
+          opacity: 1;
+          max-width: 180px;
+          visibility: visible;
+        }
 
-              .editorial-sidebar .sidebar-brand-header {
-                padding: 0;
-                justify-content: center;
-              }
+        .mobile-sidebar-inner .sidebar-menu-scroll {
+          padding: 10px 12px 20px;
+        }
 
-              .editorial-sidebar .sidebar-group-label {
-                display: none;
-              }
+        .mobile-sidebar-inner .ant-menu {
+          font-size: 13px;
+        }
 
-              .editorial-sidebar .sidebar-menu-scroll {
-                padding-left: 5px;
-                padding-right: 5px;
-              }
-            }
+        .mobile-sidebar-inner .ant-menu-item,
+        .mobile-sidebar-inner .ant-menu-submenu-title {
+          min-height: 44px !important;
+        }
 
-            /* MOBILE */
+        .mobile-sidebar-inner .sidebar-footer-copyright {
+          padding: 14px;
+        }
 
-            @media (max-width: 767px) {
-              .mobile-sidebar-inner .sidebar-brand-header {
-                height: 68px;
-                padding: 0 18px;
-              }
+        /* TABLET */
 
-              .mobile-sidebar-inner .brand-info-box {
-                opacity: 1;
-                max-width: 180px;
-                visibility: visible;
-              }
+        @media (min-width: 768px) and (max-width: 991px) {
+          .editorial-sidebar {
+            width: 76px !important;
+            max-width: 76px !important;
+            min-width: 76px !important;
+          }
 
-              .mobile-sidebar-inner .sidebar-menu-scroll {
-                padding: 10px 12px 20px;
-              }
+          .editorial-sidebar .sidebar-brand-header {
+            padding: 0;
+            justify-content: center;
+          }
 
-              .mobile-sidebar-inner .ant-menu-item,
-              .mobile-sidebar-inner .ant-menu-submenu-title {
-                min-height: 44px !important;
-              }
+          .editorial-sidebar .sidebar-group-label {
+            display: none;
+          }
 
-              .mobile-sidebar-inner .ant-menu {
-                font-size: 13px;
-              }
+          .editorial-sidebar .sidebar-menu-scroll {
+            padding-left: 5px;
+            padding-right: 5px;
+          }
+        }
 
-              .mobile-sidebar-inner .sidebar-footer-copyright {
-                padding: 14px;
-              }
-            }
+        /* MOBILE */
 
-            @media (max-height: 600px) {
-              .sidebar-brand-header {
-                height: 56px;
-                min-height: 56px;
-              }
+        @media (max-width: 767px) {
+          .mobile-sidebar-inner .sidebar-brand-header {
+            height: 68px;
+            padding: 0 18px;
+          }
 
-              .sidebar-menu-scroll {
-                padding-top: 6px;
-              }
+          .mobile-sidebar-inner .sidebar-menu-scroll {
+            padding: 10px 12px 20px;
+          }
 
-              .sidebar-footer-copyright {
-                padding: 7px;
-              }
-            }
-          `,
-        }}
-      />
+          .mobile-sidebar-inner .ant-menu-item,
+          .mobile-sidebar-inner .ant-menu-submenu-title {
+            min-height: 44px !important;
+          }
+        }
+
+        /* SHORT SCREEN */
+
+        @media (max-height: 600px) {
+          .sidebar-brand-header {
+            height: 54px;
+            min-height: 54px;
+          }
+
+          .sidebar-menu-scroll {
+            padding-top: 6px;
+          }
+
+          .sidebar-footer-copyright {
+            padding: 7px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .editorial-sidebar *,
+          .responsive-sidebar-drawer * {
+            transition-duration: .01ms !important;
+          }
+        }
+      `}</style>
     </ConfigProvider>
   );
 }

@@ -13,7 +13,9 @@ import {
   notification,
   Empty,
   message,
+  Grid,
 } from "antd";
+
 import {
   UserOutlined,
   LogoutOutlined,
@@ -22,6 +24,7 @@ import {
   QuestionCircleOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
+  MenuOutlined,
   CalendarOutlined,
   HistoryOutlined,
   CheckCircleOutlined,
@@ -37,13 +40,10 @@ import HelpModal from "../../components/HelpModal";
 
 const { Header } = Layout;
 const { Text } = Typography;
+const { useBreakpoint } = Grid;
 
-// ==============================
-// THEME
-// ==============================
 const primaryNavy = "#1B365D";
 const accentGold = "#D4AF37";
-const textDark = "#1E293B";
 const softBg = "#FAFAFA";
 
 const DEFAULT_TITLE = "Giáo xứ Đồng Quan";
@@ -55,14 +55,15 @@ export default function AdminHeader({
 }) {
   const navigate = useNavigate();
   const { user, logout } = useUser();
+  const screens = useBreakpoint();
+
+  const isMobile = !screens.md;
 
   const [notifyCount, setNotifyCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [helpOpen, setHelpOpen] = useState(false);
 
-  // ==============================
   // FETCH NOTIFICATIONS
-  // ==============================
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await getNotificationsToday();
@@ -79,9 +80,7 @@ export default function AdminHeader({
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // ==============================
   // SOCKET NOTIFICATION
-  // ==============================
   useEffect(() => {
     const handleNotification = (data) => {
       const standardizedData = {
@@ -127,9 +126,7 @@ export default function AdminHeader({
     };
   }, []);
 
-  // ==============================
   // BROWSER NOTIFICATION
-  // ==============================
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission().catch((err) => {
@@ -138,9 +135,7 @@ export default function AdminHeader({
     }
   }, []);
 
-  // ==============================
   // DOCUMENT TITLE
-  // ==============================
   useEffect(() => {
     document.title =
       notifyCount > 0 ? `(${notifyCount}) Thông báo mới` : DEFAULT_TITLE;
@@ -178,9 +173,7 @@ export default function AdminHeader({
     };
   }, [notifyCount]);
 
-  // ==============================
   // MARK ALL AS READ
-  // ==============================
   const clearNotifications = async () => {
     try {
       await markAllNotificationsAsRead();
@@ -202,9 +195,7 @@ export default function AdminHeader({
     }
   };
 
-  // ==============================
   // FORMAT TIME
-  // ==============================
   const formatNotifyTime = (date) => {
     if (!date) return "";
 
@@ -220,51 +211,37 @@ export default function AdminHeader({
     });
   };
 
-  // ==============================
   // USER MENU
-  // ==============================
   const menuItems = [
     {
       key: "profile",
-      icon: <UserOutlined style={{ fontSize: "14px", color: primaryNavy }} />,
-      label: (
-        <span style={{ fontWeight: 600, color: textDark }}>
-          Thông tin cá nhân
-        </span>
-      ),
+      icon: <UserOutlined />,
+      label: "Thông tin cá nhân",
     },
     {
       key: "settings",
-      icon: (
-        <SettingOutlined style={{ fontSize: "14px", color: primaryNavy }} />
-      ),
-      label: (
-        <span style={{ fontWeight: 600, color: textDark }}>
-          Cài đặt hệ thống
-        </span>
-      ),
+      icon: <SettingOutlined />,
+      label: "Cài đặt hệ thống",
     },
     {
       type: "divider",
     },
     {
       key: "logout",
-      icon: <LogoutOutlined style={{ fontSize: "14px" }} />,
-      label: <span style={{ fontWeight: 700 }}>Đăng xuất</span>,
+      icon: <LogoutOutlined />,
+      label: "Đăng xuất",
       danger: true,
     },
   ];
 
-  // ==============================
   // NOTIFICATION DROPDOWN
-  // ==============================
   const notificationDropdown = () => (
-    <div className="dropdown-container">
-      <div className="dropdown-header">
-        <div className="dropdown-heading">
-          <div className="dropdown-title">Trung Tâm Thông Báo</div>
+    <div className="ah-notification-panel">
+      <div className="ah-notification-header">
+        <div className="ah-notification-heading">
+          <div className="ah-notification-title">Trung Tâm Thông Báo</div>
 
-          <Text className="dropdown-subtitle">
+          <Text className="ah-notification-subtitle">
             Cập nhật hoạt động & Lịch mục vụ Giáo xứ
           </Text>
         </div>
@@ -275,60 +252,59 @@ export default function AdminHeader({
             type="text"
             icon={<CheckCircleOutlined />}
             onClick={clearNotifications}
-            className="btn-clear-all"
+            className="ah-clear-button"
           >
             Đọc tất cả
           </Button>
         )}
       </div>
 
-      <div className="dropdown-body custom-scrollbar">
+      <div className="ah-notification-body">
         {notifications.length === 0 ? (
-          <div className="empty-state">
+          <div className="ah-empty">
             <Empty
-              description={
-                <span style={{ color: "#94a3b8" }}>
-                  Chưa có thông báo mới nào
-                </span>
-              }
+              description="Chưa có thông báo mới nào"
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             />
           </div>
         ) : (
-          <div className="notify-list-wrapper">
+          <div className="ah-notification-list">
             {notifications.map((item) => {
               const isMass = item.type === "today_mass";
 
               return (
                 <div
                   key={item.id}
-                  className={`notify-card-item ${
+                  className={`ah-notification-item ${
                     !item.is_read ? "unread" : ""
-                  } ${isMass ? "mass-type" : "sys-type"}`}
+                  } ${isMass ? "mass" : "system"}`}
                 >
-                  {!item.is_read && <span className="unread-dot" />}
+                  {!item.is_read && <span className="ah-unread-dot" />}
 
-                  <Space align="start" size={12} style={{ width: "100%" }}>
+                  <Space
+                    align="start"
+                    size={12}
+                    className="ah-notification-row"
+                  >
                     <Avatar
-                      size={36}
-                      className={`notify-avatar ${isMass ? "mass" : "sys"}`}
+                      size={38}
+                      className={`ah-notification-avatar ${
+                        isMass ? "mass" : "system"
+                      }`}
                       icon={isMass ? <CalendarOutlined /> : <HistoryOutlined />}
                     />
 
-                    <div className="notify-content-wrapper">
-                      <div className="notify-item-meta">
-                        <span className="notify-item-title">{item.title}</span>
+                    <div className="ah-notification-content">
+                      <div className="ah-notification-item-title">
+                        {item.title}
                       </div>
 
-                      <div className="notify-item-content">{item.content}</div>
+                      <div className="ah-notification-item-description">
+                        {item.content}
+                      </div>
 
-                      <div
-                        className="notify-item-meta"
-                        style={{ marginTop: 4 }}
-                      >
-                        <span className="notify-item-time">
-                          {formatNotifyTime(item.created_at)}
-                        </span>
+                      <div className="ah-notification-time">
+                        {formatNotifyTime(item.created_at)}
                       </div>
                     </div>
                   </Space>
@@ -341,27 +317,21 @@ export default function AdminHeader({
     </div>
   );
 
-  // ==============================
   // USER AVATAR
-  // ==============================
   const userAvatarUrl = user?.avatar
     ? user.avatar.startsWith("http")
       ? user.avatar
       : `${process.env.REACT_APP_API_URL}${user.avatar}`
     : null;
 
-  // ==============================
   // ROLE
-  // ==============================
   const translateRole = (role) => {
     if (role === "priest") return "Linh mục Chánh xứ";
     if (role === "admin") return "Ban Quản Trị";
     return "Hội đồng Mục vụ";
   };
 
-  // ==============================
   // MENU CLICK
-  // ==============================
   const handleMenuClick = ({ key }) => {
     if (key === "logout") {
       logout();
@@ -372,12 +342,10 @@ export default function AdminHeader({
     }
   };
 
-  // ==============================
-  // RESPONSIVE MENU CLICK
-  // ==============================
+  // RESPONSIVE MENU
   const handleCollapseClick = () => {
-    if (window.innerWidth < 768 && onOpenMobileMenu) {
-      onOpenMobileMenu();
+    if (isMobile) {
+      onOpenMobileMenu?.();
       return;
     }
 
@@ -390,39 +358,49 @@ export default function AdminHeader({
         token: {
           colorPrimary: primaryNavy,
           borderRadius: 12,
-          fontFamily: "'Be Vietnam Pro', -apple-system, sans-serif",
+          fontFamily: "'Be Vietnam Pro', sans-serif",
         },
       }}
     >
       <Header className="editorial-header">
         {/* LEFT */}
-        <div className="header-left">
+        <div className="ah-left">
           <Button
             type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            icon={
+              isMobile ? (
+                <MenuOutlined />
+              ) : collapsed ? (
+                <MenuUnfoldOutlined />
+              ) : (
+                <MenuFoldOutlined />
+              )
+            }
             onClick={handleCollapseClick}
-            className="btn-collapse"
+            className="ah-collapse-button"
             aria-label="Mở hoặc thu gọn menu"
           />
 
-          <Space size={10} className="brand-wrapper">
-            <div className="brand-logo-cube">ĐQ</div>
+          <div className="ah-brand">
+            <div className="ah-brand-logo">ĐQ</div>
 
-            <Text className="brand-text">
-              Giáo xứ <span className="brand-highlight">Đồng Quan</span>
-            </Text>
-          </Space>
+            <div className="ah-brand-text">
+              <span>Giáo xứ</span>
+              <strong>Đồng Quan</strong>
+            </div>
+          </div>
         </div>
 
         {/* RIGHT */}
-        <div className="header-right">
+        <div className="ah-right">
           <Tooltip title="Hướng dẫn sử dụng">
             <Button
               type="text"
               shape="circle"
-              className="btn-action-icon help-button"
-              icon={<QuestionCircleOutlined style={{ fontSize: "18px" }} />}
+              className="ah-action-button ah-help-button"
+              icon={<QuestionCircleOutlined />}
               onClick={() => setHelpOpen(true)}
+              aria-label="Hướng dẫn sử dụng"
             />
           </Tooltip>
 
@@ -431,30 +409,29 @@ export default function AdminHeader({
             trigger={["click"]}
             placement="bottomRight"
             dropdownRender={notificationDropdown}
-            overlayClassName="editorial-dropdown-shadow"
-            getPopupContainer={(trigger) =>
-              trigger.parentElement || document.body
-            }
+            overlayClassName="ah-dropdown-shadow"
+            getPopupContainer={() => document.body}
           >
             <Badge
               count={notifyCount}
               size="small"
               color="#ef4444"
-              offset={[-2, 6]}
+              offset={[-2, 5]}
+              overflowCount={99}
             >
               <Button
                 type="text"
                 shape="circle"
-                className={`btn-action-icon ${
+                className={`ah-action-button ${
                   notifyCount > 0 ? "has-notify" : ""
                 }`}
-                icon={<BellOutlined style={{ fontSize: "18px" }} />}
+                icon={<BellOutlined />}
                 aria-label="Thông báo"
               />
             </Badge>
           </Dropdown>
 
-          <div className="divider-vertical hide-mobile" />
+          <div className="ah-divider" />
 
           {/* USER PROFILE */}
           <Dropdown
@@ -464,22 +441,20 @@ export default function AdminHeader({
             }}
             placement="bottomRight"
             trigger={["click"]}
-            overlayClassName="editorial-dropdown-shadow"
+            overlayClassName="ah-dropdown-shadow"
           >
-            <div className="user-profile-badge">
-              <div className="user-meta-info hide-mobile">
-                <div className="user-name">
+            <div className="ah-user-profile">
+              <div className="ah-user-info">
+                <div className="ah-user-name">
                   {user?.username || user?.full_name || "Quản trị viên"}
                 </div>
 
-                <div className={`user-role-tag ${user?.role || "staff"}`}>
-                  {translateRole(user?.role)}
-                </div>
+                <div className="ah-user-role">{translateRole(user?.role)}</div>
               </div>
 
               <Avatar
-                size={34}
-                className={`user-avatar-main ${
+                size={36}
+                className={`ah-user-avatar ${
                   user?.role === "priest" ? "priest" : "staff"
                 }`}
                 src={userAvatarUrl}
@@ -493,585 +468,590 @@ export default function AdminHeader({
       </Header>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap');
-
-        /* ==============================
-           HEADER BASE
-        ============================== */
+        @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap');
 
         .editorial-header {
-          box-sizing: border-box;
-          background: rgba(255, 255, 255, 0.92) !important;
-          backdrop-filter: blur(20px) saturate(180%);
-          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          box-sizing: border-box !important;
+          width: 100%;
+          height: 64px !important;
+          min-height: 64px !important;
+          padding: 0 24px !important;
+          margin: 0;
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          gap: 12px;
-          padding: 0 24px;
+          justify-content: space-between;
+          gap: 16px;
           position: sticky;
           top: 0;
           z-index: 100;
-          width: 100%;
-          height: 64px;
-          line-height: normal;
-          border-bottom: 1px solid rgba(212, 175, 55, 0.25);
+          line-height: normal !important;
+          background: rgba(255,255,255,.96) !important;
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+          border-bottom: 1px solid rgba(212,175,55,.25);
           font-family: 'Be Vietnam Pro', sans-serif;
         }
 
-        .header-left,
-        .header-right {
+        .ah-left,
+        .ah-right {
           display: flex;
           align-items: center;
           min-width: 0;
+          height: 100%;
         }
 
-        .header-left {
-          flex: 1;
-          gap: 18px;
+        .ah-left {
+          flex: 1 1 auto;
+          gap: 16px;
           overflow: hidden;
         }
 
-        .header-right {
-          flex-shrink: 0;
-          gap: 12px;
+        .ah-right {
+          flex: 0 0 auto;
+          justify-content: flex-end;
+          gap: 10px;
         }
 
-        /* ==============================
-           COLLAPSE BUTTON
-        ============================== */
-
-        .btn-collapse {
-          flex-shrink: 0;
-          font-size: 15px;
+        .ah-collapse-button {
+          flex: 0 0 38px;
           width: 38px;
           height: 38px;
-          min-width: 38px;
+          padding: 0 !important;
           border-radius: 10px;
           display: flex;
-          align-items: center;
           justify-content: center;
+          align-items: center;
+          color: ${primaryNavy} !important;
           background: ${softBg} !important;
-          border: 1px solid rgba(27, 54, 93, 0.1) !important;
-          color: ${primaryNavy};
-          transition: all 0.2s ease;
+          border: 1px solid rgba(27,54,93,.1) !important;
+          transition: .25s ease;
         }
 
-        .btn-collapse:hover {
+        .ah-collapse-button .anticon {
+          font-size: 17px;
+        }
+
+        .ah-collapse-button:hover {
           color: ${accentGold} !important;
-          background: #ffffff !important;
           border-color: ${accentGold} !important;
+          background: white !important;
         }
 
-        /* ==============================
-           BRAND
-        ============================== */
-
-        .brand-wrapper {
+        .ah-brand {
+          display: flex;
+          align-items: center;
+          gap: 10px;
           min-width: 0;
           overflow: hidden;
-          padding-left: 2px;
         }
 
-        .brand-logo-cube {
-          width: 34px;
-          height: 34px;
-          min-width: 34px;
-          border-radius: 10px;
+        .ah-brand-logo {
+          width: 36px;
+          height: 36px;
+          flex: 0 0 36px;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #ffffff;
-          font-weight: 800;
-          font-size: 12px;
-          letter-spacing: 0.5px;
-          background: linear-gradient(
-            135deg,
-            ${primaryNavy} 0%,
-            #0f2342 100%
-          );
+          border-radius: 11px;
+          background: linear-gradient(135deg,#1B365D,#0F2342);
+          color: #fff;
           border: 1px solid ${accentGold};
-          box-shadow: 0 4px 12px rgba(27, 54, 93, 0.2);
-          font-family: 'Playfair Display', serif;
+          font-family: 'Playfair Display',serif;
+          font-size: 13px;
+          font-weight: 800;
+          box-shadow: 0 3px 10px rgba(27,54,93,.15);
         }
 
-        .brand-text {
-          display: block;
+        .ah-brand-text {
+          display: flex;
+          align-items: center;
+          gap: 5px;
           min-width: 0;
-          color: ${primaryNavy};
-          font-size: 16px;
-          font-weight: 600;
-          letter-spacing: -0.2px;
           white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          color: ${primaryNavy};
+          font-size: 15px;
+          font-weight: 600;
         }
 
-        .brand-highlight {
+        .ah-brand-text strong {
           color: ${accentGold};
+          font-family: 'Playfair Display',serif;
+          font-size: 17px;
           font-weight: 700;
-          font-family: 'Playfair Display', serif;
         }
 
-        /* ==============================
-           ACTION BUTTONS
-        ============================== */
-
-        .btn-action-icon {
-          width: 38px;
-          height: 38px;
-          min-width: 38px;
+        .ah-action-button {
+          width: 38px !important;
+          height: 38px !important;
+          min-width: 38px !important;
+          padding: 0 !important;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: ${primaryNavy};
-          background: transparent;
-          transition: all 0.2s ease;
-          border-radius: 10px;
+          border-radius: 11px !important;
+          color: ${primaryNavy} !important;
+          background: transparent !important;
+          transition: all .25s ease;
         }
 
-        .btn-action-icon:hover {
-          background: rgba(27, 54, 93, 0.06) !important;
+        .ah-action-button .anticon {
+          font-size: 18px;
+        }
+
+        .ah-action-button:hover {
+          background: rgba(27,54,93,.07) !important;
           color: ${accentGold} !important;
         }
 
-        .btn-action-icon.has-notify {
-          color: ${accentGold};
+        .ah-action-button.has-notify {
+          color: ${accentGold} !important;
         }
 
-        .divider-vertical {
+        .ah-divider {
           width: 1px;
-          height: 22px;
-          background: rgba(27, 54, 93, 0.12);
-          margin: 0 4px;
+          height: 26px;
+          flex: 0 0 1px;
+          background: rgba(27,54,93,.12);
+          margin: 0 3px;
         }
 
-        /* ==============================
-           USER PROFILE
-        ============================== */
-
-        .user-profile-badge {
+        .ah-user-profile {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
+          padding: 4px 5px 4px 13px;
+          border: 1px solid rgba(212,175,55,.3);
+          border-radius: 30px;
+          background: #fff;
           cursor: pointer;
-          padding: 4px 6px 4px 14px;
-          border-radius: 100px;
-          transition: all 0.2s ease;
-          border: 1px solid rgba(212, 175, 55, 0.3);
-          background: #ffffff;
-          flex-shrink: 0;
+          transition: .25s ease;
+          min-width: 0;
         }
 
-        .user-profile-badge:hover {
+        .ah-user-profile:hover {
           border-color: ${accentGold};
           background: ${softBg};
-          box-shadow: 0 4px 14px rgba(27, 54, 93, 0.08);
+          box-shadow: 0 3px 12px rgba(27,54,93,.07);
         }
 
-        .user-meta-info {
-          text-align: right;
-          line-height: 1.3;
+        .ah-user-info {
           min-width: 0;
-        }
-
-        .user-name {
           max-width: 180px;
-          font-weight: 700;
-          font-size: 13px;
-          color: ${primaryNavy};
+          text-align: right;
+          line-height: 1.35;
+        }
+
+        .ah-user-name {
           overflow: hidden;
+          white-space: nowrap;
           text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .user-role-tag {
-          font-size: 10px;
+          font-size: 12px;
           font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.4px;
-          margin-top: 1px;
-          white-space: nowrap;
-        }
-
-        .user-role-tag.priest {
-          color: ${accentGold};
-        }
-
-        .user-role-tag.admin {
           color: ${primaryNavy};
         }
 
-        .user-role-tag.staff {
+        .ah-user-role {
+          margin-top: 2px;
+          font-size: 10px;
+          font-weight: 600;
           color: #64748b;
+          white-space: nowrap;
         }
 
-        .user-avatar-main.priest {
-          background: linear-gradient(
-            135deg,
-            ${accentGold} 0%,
-            #b38f24 100%
-          );
-          border: 1px solid ${accentGold};
+        .ah-user-avatar {
+          flex: 0 0 36px;
+          border: 1px solid rgba(212,175,55,.5);
         }
 
-        .user-avatar-main.staff {
-          background: linear-gradient(
-            135deg,
-            ${primaryNavy} 0%,
-            #0f2342 100%
-          );
+        .ah-user-avatar.priest {
+          background: linear-gradient(135deg,#D4AF37,#B38F24);
         }
 
-        /* ==============================
-           NOTIFICATION DROPDOWN
-        ============================== */
+        .ah-user-avatar.staff {
+          background: linear-gradient(135deg,#1B365D,#0F2342);
+        }
 
-        .dropdown-container {
-          width: 380px;
+        .ah-dropdown-shadow {
+          z-index: 1100;
+        }
+
+        .ah-notification-panel {
+          width: 390px;
           max-width: calc(100vw - 24px);
-          background: #ffffff;
-          border-radius: 18px;
-          border: 1px solid rgba(212, 175, 55, 0.3);
+          background: white;
+          border: 1px solid rgba(212,175,55,.3);
+          border-radius: 16px;
           overflow: hidden;
-          box-shadow: 0 20px 30px -5px rgba(27, 54, 93, 0.12);
+          box-shadow: 0 16px 45px rgba(27,54,93,.16);
         }
 
-        .dropdown-header {
-          padding: 16px 20px;
-          border-bottom: 1px solid rgba(27, 54, 93, 0.08);
+        .ah-notification-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           gap: 10px;
+          padding: 15px 17px;
           background: ${softBg};
+          border-bottom: 1px solid rgba(27,54,93,.08);
         }
 
-        .dropdown-heading {
+        .ah-notification-heading {
           min-width: 0;
         }
 
-        .dropdown-title {
+        .ah-notification-title {
+          font-family: 'Playfair Display',serif;
           font-weight: 700;
           font-size: 15px;
           color: ${primaryNavy};
-          font-family: 'Playfair Display', serif;
         }
 
-        .dropdown-subtitle {
-          font-size: 12px;
-          color: #64748b;
+        .ah-notification-subtitle {
           display: block;
-          margin-top: 1px;
+          font-size: 11px;
+          color: #64748b;
+          margin-top: 3px;
         }
 
-        .btn-clear-all {
-          flex-shrink: 0;
+        .ah-clear-button {
+          flex: 0 0 auto;
           color: ${primaryNavy} !important;
+          font-size: 11px;
           font-weight: 700;
-          font-size: 12px;
-          padding: 0 4px;
+          padding: 0 5px !important;
         }
 
-        .btn-clear-all:hover {
-          color: ${accentGold} !important;
-        }
-
-        .dropdown-body {
-          max-height: 360px;
+        .ah-notification-body {
+          max-height: min(430px, 65vh);
           overflow-y: auto;
+          overscroll-behavior: contain;
         }
 
-        .notify-list-wrapper {
-          padding: 10px;
+        .ah-notification-list {
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 7px;
+          padding: 10px;
         }
 
-        .notify-card-item {
-          padding: 12px 14px;
-          border-radius: 12px;
-          background: #ffffff;
-          border: 1px solid rgba(27, 54, 93, 0.06);
-          transition: all 0.2s ease;
+        .ah-notification-item {
           position: relative;
+          padding: 12px;
+          border-radius: 11px;
+          border: 1px solid rgba(27,54,93,.07);
+          background: white;
         }
 
-        .notify-card-item:hover {
-          background: ${softBg} !important;
-          border-color: rgba(212, 175, 55, 0.3);
+        .ah-notification-item:hover {
+          background: ${softBg};
+          border-color: rgba(212,175,55,.35);
         }
 
-        .notify-card-item.unread.mass-type {
+        .ah-notification-item.unread.mass {
           background: #fffdf5;
-          border-color: rgba(212, 175, 55, 0.3);
+          border-color: rgba(212,175,55,.3);
         }
 
-        .notify-card-item.unread.sys-type {
+        .ah-notification-item.unread.system {
           background: #f0fdf4;
           border-color: #bbf7d0;
         }
 
-        .unread-dot {
-          position: absolute;
-          top: 14px;
-          right: 14px;
-          width: 7px;
-          height: 7px;
-          background-color: #ef4444;
-          border-radius: 50%;
-        }
-
-        .notify-avatar.mass {
-          background: rgba(212, 175, 55, 0.15);
-          color: ${primaryNavy};
-          border: 1px solid ${accentGold};
-          flex-shrink: 0;
-        }
-
-        .notify-avatar.sys {
-          background: rgba(27, 54, 93, 0.1);
-          color: ${primaryNavy};
-          flex-shrink: 0;
-        }
-
-        .notify-content-wrapper {
+        .ah-notification-row {
+          display: flex;
           width: 100%;
           min-width: 0;
         }
 
-        .notify-item-meta {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 8px;
+        .ah-notification-avatar {
+          flex: 0 0 38px;
         }
 
-        .notify-item-title {
+        .ah-notification-avatar.mass {
+          background: #fbf2d9;
+          color: ${primaryNavy};
+          border: 1px solid ${accentGold};
+        }
+
+        .ah-notification-avatar.system {
+          background: #eaf0f7;
+          color: ${primaryNavy};
+        }
+
+        .ah-notification-content {
+          flex: 1;
+          min-width: 0;
+          padding-right: 5px;
+        }
+
+        .ah-notification-item-title {
+          font-size: 12px;
           font-weight: 700;
           color: ${primaryNavy};
-          font-size: 13px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .notify-item-time {
-          font-size: 11px;
-          color: #94a3b8;
-          white-space: nowrap;
-        }
-
-        .notify-item-content {
-          font-size: 12.5px;
-          color: #475569;
-          margin-top: 3px;
-          line-height: 1.45;
           overflow-wrap: anywhere;
         }
 
-        .empty-state {
-          padding: 40px 0;
-          text-align: center;
+        .ah-notification-item-description {
+          margin-top: 4px;
+          font-size: 12px;
+          line-height: 1.5;
+          color: #475569;
+          overflow-wrap: anywhere;
         }
 
-        .custom-scrollbar::-webkit-scrollbar {
+        .ah-notification-time {
+          margin-top: 5px;
+          font-size: 10px;
+          color: #94a3b8;
+        }
+
+        .ah-unread-dot {
+          position: absolute;
+          right: 11px;
+          top: 12px;
+          width: 7px;
+          height: 7px;
+          background: #ef4444;
+          border-radius: 50%;
+        }
+
+        .ah-empty {
+          padding: 35px 10px;
+        }
+
+        .ah-notification-body::-webkit-scrollbar {
           width: 5px;
         }
 
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
+        .ah-notification-body::-webkit-scrollbar-thumb {
+          background: rgba(212,175,55,.4);
+          border-radius: 10px;
         }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(212, 175, 55, 0.3);
-          border-radius: 20px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: ${accentGold};
-        }
-
-        /* ==============================
-           TABLET
-        ============================== */
 
         @media (max-width: 991px) {
           .editorial-header {
-            padding: 0 16px;
+            padding: 0 16px !important;
+            gap: 10px;
           }
 
-          .header-left {
+          .ah-left {
             gap: 12px;
           }
 
-          .header-right {
+          .ah-right {
             gap: 6px;
           }
 
-          .brand-text {
-            font-size: 14px;
+          .ah-user-info {
+            display: none;
           }
 
-          .user-profile-badge {
-            gap: 0;
+          .ah-user-profile {
             padding: 3px;
             border: none;
             background: transparent;
           }
 
-          .user-profile-badge:hover {
-            background: rgba(27, 54, 93, 0.06);
+          .ah-user-profile:hover {
+            background: rgba(27,54,93,.06);
             box-shadow: none;
           }
-        }
 
-        /* ==============================
-           MOBILE
-        ============================== */
+          .ah-divider {
+            margin: 0 2px;
+          }
+        }
 
         @media (max-width: 767px) {
           .editorial-header {
-            height: 58px;
-            min-height: 58px;
-            padding: 0 10px;
-            gap: 6px;
-          }
-
-          .header-left {
-            gap: 8px;
-          }
-
-          .header-right {
-            gap: 2px;
-          }
-
-          .btn-collapse {
-            width: 34px;
-            height: 34px;
-            min-width: 34px;
-            padding: 0;
-            font-size: 16px;
-          }
-
-          .brand-wrapper {
-            gap: 7px !important;
-          }
-
-          .brand-logo-cube {
-            width: 32px;
-            height: 32px;
-            min-width: 32px;
-            font-size: 11px;
-          }
-
-          .brand-text {
-            max-width: 125px;
-            font-size: 13px;
-            letter-spacing: -0.3px;
-          }
-
-          .brand-highlight {
-            font-size: 13px;
-          }
-
-          .btn-action-icon {
-            width: 34px;
-            height: 34px;
-            min-width: 34px;
-            padding: 0;
-          }
-
-          .btn-action-icon .anticon {
-            font-size: 17px !important;
-          }
-
-          .user-profile-badge {
-            padding: 0;
-            margin-left: 2px;
-          }
-
-          .user-avatar-main {
-            width: 32px !important;
-            height: 32px !important;
-            min-width: 32px;
-          }
-
-          .hide-mobile {
-            display: none !important;
-          }
-
-          .dropdown-container {
-            width: calc(100vw - 20px);
-            max-width: 380px;
-            border-radius: 14px;
-          }
-
-          .dropdown-header {
-            padding: 12px 14px;
-            gap: 8px;
-          }
-
-          .dropdown-title {
-            font-size: 14px;
-          }
-
-          .dropdown-subtitle {
-            font-size: 11px;
-          }
-
-          .dropdown-body {
-            max-height: min(55vh, 360px);
-          }
-
-          .notify-list-wrapper {
-            padding: 8px;
-            gap: 6px;
-          }
-
-          .notify-card-item {
-            padding: 10px;
-          }
-        }
-
-        /* ==============================
-           SMALL MOBILE
-        ============================== */
-
-        @media (max-width: 380px) {
-          .editorial-header {
-            padding: 0 7px;
-          }
-
-          .header-left {
+            height: 58px !important;
+            min-height: 58px !important;
+            padding: 0 10px !important;
             gap: 5px;
           }
 
-          .header-right {
+          .ah-left {
+            gap: 8px;
+          }
+
+          .ah-right {
+            gap: 3px;
+          }
+
+          .ah-collapse-button {
+            width: 36px !important;
+            height: 36px !important;
+            flex-basis: 36px;
+            min-width: 36px !important;
+          }
+
+          .ah-brand {
+            gap: 7px;
+          }
+
+          .ah-brand-logo {
+            width: 32px;
+            height: 32px;
+            flex-basis: 32px;
+            font-size: 11px;
+          }
+
+          .ah-brand-text {
+            gap: 3px;
+            font-size: 12px;
+          }
+
+          .ah-brand-text strong {
+            font-size: 14px;
+          }
+
+          .ah-action-button {
+            width: 34px !important;
+            height: 34px !important;
+            min-width: 34px !important;
+          }
+
+          .ah-action-button .anticon {
+            font-size: 17px;
+          }
+
+          .ah-divider {
+            display: none;
+          }
+
+          .ah-user-profile {
+            margin-left: 1px;
+          }
+
+          .ah-user-avatar {
+            width: 32px !important;
+            height: 32px !important;
+            flex-basis: 32px;
+            font-size: 14px;
+          }
+
+          .ah-notification-panel {
+            width: min(380px, calc(100vw - 20px));
+            border-radius: 13px;
+          }
+
+          .ah-notification-header {
+            padding: 12px;
+          }
+
+          .ah-notification-title {
+            font-size: 13px;
+          }
+
+          .ah-notification-subtitle {
+            font-size: 10px;
+          }
+
+          .ah-notification-body {
+            max-height: 55vh;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .editorial-header {
+            padding: 0 7px !important;
+            gap: 2px;
+          }
+
+          .ah-left {
+            gap: 5px;
+          }
+
+          .ah-right {
+            gap: 1px;
+          }
+
+          .ah-collapse-button {
+            width: 32px !important;
+            height: 32px !important;
+            min-width: 32px !important;
+            flex-basis: 32px;
+          }
+
+          .ah-brand {
+            gap: 5px;
+          }
+
+          .ah-brand-logo {
+            width: 29px;
+            height: 29px;
+            flex-basis: 29px;
+            border-radius: 8px;
+          }
+
+          .ah-brand-text {
+            font-size: 11px;
+          }
+
+          .ah-brand-text strong {
+            font-size: 12px;
+          }
+
+          .ah-action-button {
+            width: 30px !important;
+            height: 30px !important;
+            min-width: 30px !important;
+          }
+
+          .ah-action-button .anticon {
+            font-size: 16px;
+          }
+
+          .ah-user-avatar {
+            width: 29px !important;
+            height: 29px !important;
+            flex-basis: 29px;
+          }
+        }
+
+        @media (max-width: 340px) {
+          .editorial-header {
+            padding: 0 5px !important;
+          }
+
+          .ah-left {
+            gap: 4px;
+          }
+
+          .ah-right {
             gap: 0;
           }
 
-          .brand-text {
-            max-width: 105px;
-            font-size: 12px;
+          .ah-brand-text {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            line-height: 1.1;
+            gap: 1px;
+            font-size: 10px;
           }
 
-          .brand-highlight {
-            font-size: 12px;
+          .ah-brand-text strong {
+            font-size: 11px;
           }
 
-          .btn-collapse,
-          .btn-action-icon {
-            width: 32px;
-            height: 32px;
-            min-width: 32px;
+          .ah-help-button {
+            display: none !important;
           }
 
-          .user-avatar-main {
-            width: 30px !important;
-            height: 30px !important;
-            min-width: 30px;
+          .ah-action-button {
+            width: 29px !important;
+            height: 29px !important;
+            min-width: 29px !important;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .editorial-header *,
+          .editorial-header *::before,
+          .editorial-header *::after {
+            transition-duration: .01ms !important;
+            animation-duration: .01ms !important;
           }
         }
       `}</style>

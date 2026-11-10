@@ -706,7 +706,6 @@ export default function ActivityLogsPage() {
             .audit-editorial-layout {
               background: ${softBg};
               min-height: 100vh;
-              padding: 40px 20px 80px 20px;
               font-family: 'Be Vietnam Pro', sans-serif;
               color: ${textDark};
             }
